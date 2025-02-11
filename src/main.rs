@@ -3,6 +3,7 @@ extern crate tracing;
 
 pub mod entities;
 mod router;
+pub mod utils;
 
 use std::time::Duration;
 
@@ -13,10 +14,7 @@ async fn main() -> eyre::Result<()> {
     install_helpers()?;
 
     HttpServer::new(|| {
-        let app = App::new()
-            // TODO: What should I send?
-            .wrap(mw::DefaultHeaders::new())
-            .wrap(mw::NormalizePath::new(mw::TrailingSlash::Always));
+        let app = App::new().wrap(mw::NormalizePath::new(mw::TrailingSlash::Always));
 
         #[cfg(debug_assertions)]
         let app = app.wrap(mw::Logger::default());

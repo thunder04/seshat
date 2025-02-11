@@ -50,6 +50,44 @@ pub struct Link {
     pub kind: &'static str,
 }
 
+impl Link {
+    pub fn start() -> Self {
+        Self {
+            kind: LinkType::Navigation.as_str(),
+            rel: Some(LinkRel::Start.as_str()),
+            href: Cow::Borrowed("/opds/"),
+        }
+    }
+}
+
+pub enum LinkType {
+    Acquisition,
+    Navigation,
+    Search,
+}
+
+impl LinkType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Acquisition => "application/atom+xml;profile=opds-catalog;kind=acquisition",
+            Self::Navigation => "application/atom+xml;profile=opds-catalog;kind=navigation",
+            Self::Search => "application/opensearchdescription+xml",
+        }
+    }
+}
+
+pub enum LinkRel {
+    Start,
+}
+
+impl LinkRel {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Start => "start",
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Content {
