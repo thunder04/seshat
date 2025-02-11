@@ -10,15 +10,16 @@ use types::LinkType;
 
 use crate::utils::determine_possesive;
 
-pub const XMLNS_ATOM: &str = "http://www.w3.org/2005/Atom";
+pub const COMMON_ROUTE: &str = "/opds";
 
-pub const FEED_TITLE: Cow<'static, str> = Cow::Borrowed("Seshat");
-pub const FEED_AUTHOR: types::Author = types::Author {
+const XMLNS_ATOM: &str = "http://www.w3.org/2005/Atom";
+const FEED_TITLE: Cow<'static, str> = Cow::Borrowed("Seshat");
+const FEED_AUTHOR: types::Author = types::Author {
     uri: Cow::Borrowed("https://github.com/thunder04"),
     name: Cow::Borrowed("Thunder04"),
 };
 
-pub fn config(cfg: &mut web::ServiceConfig) {
+pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(root)
         .service(library_root)
         .service(explore_catalog);
@@ -34,7 +35,7 @@ async fn root() -> impl Responder {
         .map(|(name, path)| types::Entry {
             title: Cow::Borrowed(name),
             link: types::Link {
-                href: Cow::Owned(format!("/opds/{path}/")),
+                href: Cow::Owned(format!("{COMMON_ROUTE}/{path}/")),
                 kind: LinkType::Acquisition.as_str(),
                 rel: None,
             },
@@ -85,10 +86,10 @@ async fn library_root(lib_path: web::Path<String>) -> impl Responder {
         ("By Tags", "tags", "tags"),
     ]
     .iter()
-    .map(|(title, sorted_by, sort_param)| types::Entry {
+    .map(|(title, sorted_by, qs_param)| types::Entry {
         title: Cow::Owned(title.to_string()),
         link: types::Link {
-            href: Cow::Owned(format!("/opds/{lib_path}/explore?sort={sort_param}")),
+            href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_path}/explore?sort={qs_param}")),
             kind: LinkType::Acquisition.as_str(),
             rel: None,
         },
@@ -104,7 +105,7 @@ async fn library_root(lib_path: web::Path<String>) -> impl Responder {
         title: "View Books".into(),
         content: None,
         link: types::Link {
-            href: Cow::Owned(format!("/opds/{lib_path}/explore")),
+            href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_path}/explore")),
             kind: LinkType::Acquisition.as_str(),
             rel: None,
         },

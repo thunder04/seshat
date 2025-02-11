@@ -7,9 +7,17 @@ In fact, the application can be ran directly on Android devices with [Termux](ht
 
 It cannot be used on its own (at least for now, who knows?). You need a e-book reader capable of reading OPDS catalogs, such as [KOReader](https://github.com/koreader/koreader).
 
+## Building
+
+Building for your platform can be done with the ordinary `cargo` command.
+Building for Android however, requires the [`cross`](https://github.com/cross-rs/cross?tab=readme-ov-file#installation) utility installed.
+
+- Build for your host: `cargo build --release`
+- Build for Android: `cross build --target aarch64-linux-android --release`
+
 ## Project Name
 
-The project name comes from [Seshat](https://en.wikipedia.org/wiki/Seshat), the ancient Egyptian goddess of writing, wisdom, and knowledge.
+The name comes from [Seshat](https://en.wikipedia.org/wiki/Seshat), the ancient Egyptian goddess of writing, wisdom, and knowledge.
 
 ## Licensing
 
