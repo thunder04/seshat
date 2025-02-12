@@ -74,7 +74,7 @@ fn install_helpers(verbose_enabled: bool) -> eyre::Result<()> {
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default().into_hooks();
     eyre_hook.install()?;
 
-    let default_level_filter = if verbose_enabled {
+    let default_level_filter = if verbose_enabled || cfg!(debug_assertions) {
         LevelFilter::DEBUG
     } else {
         LevelFilter::INFO

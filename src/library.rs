@@ -5,6 +5,7 @@ use std::{
 
 use async_sqlite::{Pool, PoolBuilder, rusqlite::OpenFlags};
 use eyre::bail;
+use time::OffsetDateTime;
 use tokio::fs;
 
 /// Handles all Calibre libraries. It's responsible for reading the metadata.db file and
@@ -37,27 +38,60 @@ impl Libraries {
 
         Ok(Self { entries })
     }
+
+    pub fn get_library(&self, name: &str) -> Option<&Library> {
+        self.entries.get(name)
+    }
+
+    pub fn all_libraries(&self) -> impl Iterator<Item = &Library> {
+        self.entries.values()
+    }
 }
 
-struct Library {
+// TODO: Use full text search database too if it's available?
+pub struct Library {
+    modified_at: OffsetDateTime,
     root_path: PathBuf,
     metadata_db: Pool,
     name: String,
 }
 
 impl Library {
-    async fn new(name: String, path: PathBuf) -> eyre::Result<Self> {
-        let root_path = fs::canonicalize(path).await?;
+    async fn new(name: String, lib_path: PathBuf) -> eyre::Result<Self> {
+        let root_path = fs::canonicalize(&lib_path).await?;
+        debug!(lib_name = %name, "Canonicalized path {lib_path:?} => {root_path:?}");
+
+        let metadata_db_path = root_path.join("metadata.db");
+        let metadata_db_file_metadata = fs::metadata(&metadata_db_path).await?;
+        let modified_at = metadata_db_file_metadata
+            .modified()
+            .or_else(|_| metadata_db_file_metadata.created())
+            .map(OffsetDateTime::from)
+            .expect("neither modified_at and created_at dates are supported in this platform");
         let metadata_db = PoolBuilder::new()
             .flags(OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .path(root_path.join("metadata.db"))
+            .path(metadata_db_path)
             .open()
             .await?;
+        debug!(mtime = ?modified_at, lib_name = %name, "Opened \"metadata.db\"");
 
         Ok(Self {
             metadata_db,
+            modified_at,
             root_path,
             name,
         })
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn modified_at(&self) -> OffsetDateTime {
+        self.modified_at
+    }
+
+    pub fn root_path(&self) -> &Path {
+        &self.root_path
     }
 }

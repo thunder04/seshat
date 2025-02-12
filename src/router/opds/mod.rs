@@ -8,7 +8,7 @@ use serde::Deserialize;
 use time::OffsetDateTime;
 use types::LinkType;
 
-use crate::utils::determine_possesive;
+use crate::{library::Libraries, utils::determine_possesive};
 
 pub const COMMON_ROUTE: &str = "/opds";
 
@@ -26,16 +26,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[get("/")]
-async fn root() -> impl Responder {
-    // Future-proof the possibility to load multiple libraries.
-    let libraries = &[("Default Library", "_")];
-
+async fn root(libraries: web::Data<Libraries>) -> impl Responder {
     let entries = libraries
-        .iter()
-        .map(|(name, path)| types::Entry {
-            title: Cow::Borrowed(name),
+        .all_libraries()
+        .map(|lib| types::Entry {
+            title: Cow::Owned(lib.name().to_string()),
             link: types::Link {
-                href: Cow::Owned(format!("{COMMON_ROUTE}/{path}/")),
+                href: Cow::Owned(format!("{COMMON_ROUTE}/{}/", lib.name())),
                 kind: LinkType::Acquisition.as_str(),
                 rel: None,
             },
@@ -43,8 +40,9 @@ async fn root() -> impl Responder {
             content: Some(types::Content {
                 kind: types::ContentKind::Text,
                 value: Cow::Owned(format!(
-                    "Explore \"{name}\"{s} Catalog",
-                    s = determine_possesive(name)
+                    "Explore {name}{s} catalog",
+                    s = determine_possesive(lib.name()),
+                    name = lib.name(),
                 )),
             }),
         })
@@ -71,10 +69,14 @@ async fn root() -> impl Responder {
         .body(to_string(&feed).expect("serialization failed"))
 }
 
-#[get("/{lib_path}/")]
-async fn library_root(lib_path: web::Path<String>) -> impl Responder {
-    // let lib_name = &**lib_path; // Currently they are the same...
-    let lib_name = "Default Library"; // ...but I don't support multiple libraries.
+#[get("/{lib_name}/")]
+async fn library_root(
+    lib_name: web::Path<String>, libraries: web::Data<Libraries>,
+) -> impl Responder {
+    let Some(lib) = libraries.get_library(&lib_name) else {
+        return HttpResponse::NotFound().body("the library doesn't exist");
+    };
+
     let mut entries = [
         ("By Date", "the date they were added", "date_added"),
         ("By Title", "title", "title"),
@@ -86,10 +88,10 @@ async fn library_root(lib_path: web::Path<String>) -> impl Responder {
         ("By Tags", "tags", "tags"),
     ]
     .iter()
-    .map(|(title, sorted_by, qs_param)| types::Entry {
+    .map(|(title, sorted_by, sort)| types::Entry {
         title: Cow::Owned(title.to_string()),
         link: types::Link {
-            href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_path}/explore?sort={qs_param}")),
+            href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_name}/explore?sort={sort}")),
             kind: LinkType::Acquisition.as_str(),
             rel: None,
         },
@@ -105,15 +107,15 @@ async fn library_root(lib_path: web::Path<String>) -> impl Responder {
         title: "View Books".into(),
         content: None,
         link: types::Link {
-            href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_path}/explore")),
+            href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_name}/explore")),
             kind: LinkType::Acquisition.as_str(),
             rel: None,
         },
     });
 
     let subtitle = format!(
-        "Explore \"{lib_name}\"{s} catalog",
-        s = determine_possesive(lib_name)
+        "Explore {lib_name}{} catalog",
+        determine_possesive(&lib_name)
     );
     let feed = types::AcquisitionFeed {
         xmlns: XMLNS_ATOM,
@@ -156,10 +158,15 @@ struct ExploreCatalogQuery {
     limit: Option<u32>,
 }
 
-#[get("/{lib_path}/explore/")]
+#[get("/{lib_name}/explore/")]
 async fn explore_catalog(
-    lib_path: web::Path<String>, query: web::Query<ExploreCatalogQuery>,
+    lib_name: web::Path<String>, query: web::Query<ExploreCatalogQuery>,
+    libraries: web::Data<Libraries>,
 ) -> impl Responder {
+    let Some(lib) = libraries.get_library(&lib_name) else {
+        return HttpResponse::NotFound().body("the library doesn't exist");
+    };
+
     let ExploreCatalogQuery {
         sort,
         offset,
