@@ -14,14 +14,10 @@ pub struct Libraries {
 }
 
 impl Libraries {
-    pub async fn from_arg_matches(matches: &clap::ArgMatches) -> eyre::Result<Self> {
+    pub async fn from_cli(cli: &mut crate::Cli) -> eyre::Result<Self> {
+        let mut paths = std::mem::take(&mut cli.lib_path).into_iter();
+        let mut names = std::mem::take(&mut cli.lib_name).into_iter();
         let mut entries = HashMap::new();
-        let mut names = matches
-            .get_many::<String>("lib:name")
-            .expect("lib:name is required");
-        let mut paths = matches
-            .get_many::<PathBuf>("lib:path")
-            .expect("lib:path is required");
 
         loop {
             match (names.next(), paths.next()) {
@@ -50,7 +46,7 @@ struct Library {
 }
 
 impl Library {
-    async fn new(name: &str, path: &Path) -> eyre::Result<Self> {
+    async fn new(name: String, path: PathBuf) -> eyre::Result<Self> {
         let root_path = fs::canonicalize(path).await?;
         let metadata_db = PoolBuilder::new()
             .flags(OpenFlags::SQLITE_OPEN_READ_ONLY)
@@ -59,9 +55,9 @@ impl Library {
             .await?;
 
         Ok(Self {
-            name: name.to_string(),
             metadata_db,
             root_path,
+            name,
         })
     }
 }

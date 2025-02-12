@@ -34,4 +34,4 @@ tokio = { version = "1.43.0", features = [
     "sync",
     "macros",
 ] }
-clap = { version = "4.5.29", features = ["cargo", "suggestions"] }
+clap = { version = "4.5.29", features = ["cargo", "color", "derive", "suggestions"] }

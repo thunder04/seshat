@@ -9,26 +9,44 @@ pub mod utils;
 use std::{path::PathBuf, time::Duration};
 
 use actix_web::{App, HttpServer, middleware as mw, web::Data};
-use clap::{ArgGroup, arg, command, value_parser};
+use clap::Parser;
 use library::Libraries;
+
+#[derive(clap::Parser)]
+#[group(id = "lib", multiple = true)]
+#[clap(
+    after_help = "Created by Thunder04 <https://github.com/thunder04>",
+    about
+)]
+pub struct Cli {
+    /// Set the server's listening host
+    #[clap(long, default_value = "localhost")]
+    pub host: String,
+    /// Set the server's listening port
+    #[clap(long, default_value = "10100")]
+    pub port: u16,
+
+    /// Enable verbose logging. For greater control, use the $RUST_LOG environment
+    /// variable
+    #[clap(short, long, global = true)]
+    pub verbose: bool,
+
+    /// Add a library to the catalog. It must be followed by --lib:path
+    #[clap(long = "lib:name", group = "lib")]
+    pub lib_name: Vec<String>,
+    /// Set the preceded's library path. It must point to the directory where
+    /// "metadata.db" is located.
+    #[clap(long = "lib:path", group = "lib")]
+    pub lib_path: Vec<PathBuf>,
+}
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    let matches = command!()
-        .arg(arg!(--"lib:name" <NAME> ... "Add a library to the catalog. It must be followed by --lib:path").required(true))
-        .arg(arg!(--"lib:path" <PATH> ... "Set the preceded's library path. It must point to the directory where \"metadata.db\" is located").value_parser(value_parser!(PathBuf)).required(true))
-        .group(ArgGroup::new("lib").args(["lib:name", "lib:path"]).multiple(true))
-        .arg(arg!(--host <VALUE> "Set the server's listening host").default_value("localhost"))
-        .arg(arg!(--port <VALUE> "Set the server's listening port").value_parser(value_parser!(u16)).default_value("10100"))
-        .arg(arg!(-v --verbose "Enable verbose logging"))
-        .after_help("Created by Thunder04 <https://github.com/thunder04>.")
-        .get_matches();
+    let mut cli = Cli::parse();
 
-    install_helpers(matches.get_flag("verbose"))?;
+    install_helpers(cli.verbose)?;
 
-    let libraries = Data::new(Libraries::from_arg_matches(&matches).await?);
-    let host: &String = matches.try_get_one("host")?.expect("required");
-    let port: &u16 = matches.try_get_one("port")?.expect("required");
+    let libraries = Data::new(Libraries::from_cli(&mut cli).await?);
 
     HttpServer::new(move || {
         let app = App::new()
@@ -42,7 +60,7 @@ async fn main() -> eyre::Result<()> {
         app
     })
     .keep_alive(Duration::from_secs(30))
-    .bind((host.to_string(), *port))?
+    .bind((cli.host, cli.port))?
     .run()
     .await?;
 
