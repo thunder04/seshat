@@ -26,6 +26,7 @@ pub struct AcquisitionFeed {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Entry {
+    pub id: Cow<'static, str>,
     pub title: Cow<'static, str>,
     pub link: Link,
     #[serde(with = "rfc3339")]

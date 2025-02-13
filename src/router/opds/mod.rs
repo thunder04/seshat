@@ -44,6 +44,7 @@ async fn root(libraries: web::Data<Libraries>) -> impl Responder {
         entries: libraries
             .all_libraries()
             .map(|lib| opds::Entry {
+                id: lib.acquisition_feed_id().to_string().into(),
                 title: lib.name().to_string().into(),
                 link: opds::Link {
                     href: format!("{COMMON_ROUTE}/{}", lib.name()).into(),
@@ -73,6 +74,7 @@ async fn library_root(
     };
 
     let mut entries = vec![opds::Entry {
+        id: lib.acquisition_feed_id().to_string().into(),
         title: "View Books".into(),
         content: None,
         updated: lib.modified_at(),
@@ -97,6 +99,7 @@ async fn library_root(
         ]
         .into_iter()
         .map(|(title, sorted_by, sort)| opds::Entry {
+            id: format!("{}-by_{sort}", lib.acquisition_feed_id()).into(),
             title: title.to_string().into(),
             link: opds::Link {
                 href: format!("{COMMON_ROUTE}/{lib_name}/explore?sort={sort}").into(),
