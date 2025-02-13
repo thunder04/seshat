@@ -28,6 +28,8 @@ pub struct AcquisitionFeed {
 pub struct Entry {
     pub title: Cow<'static, str>,
     pub link: Link,
+    #[serde(with = "rfc3339")]
+    pub updated: OffsetDateTime,
     pub content: Option<Content>,
 }
 

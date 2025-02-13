@@ -28,23 +28,19 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[get("/")]
 async fn root(libraries: web::Data<Libraries>) -> impl Responder {
     let feed = opds::AcquisitionFeed {
+        author: FEED_AUTHOR,
+        title: FEED_TITLE,
         xmlns: XMLNS_ATOM,
 
-        // TODO: What should I change this to? Perhaps to a hash of modified at dates of all
-        // libraries?
-        id: "urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2".into(),
-        title: FEED_TITLE,
         subtitle: Some("Explore all available libraries".into()),
-        author: FEED_AUTHOR,
         links: vec![opds::Link::start()],
-
+        id: "urn:seshat:root".into(),
         // updated_at is set as the library with the most recent change.
         updated: libraries
             .all_libraries()
             .map(|lib| lib.modified_at())
             .max()
             .unwrap_or(OffsetDateTime::UNIX_EPOCH),
-
         entries: libraries
             .all_libraries()
             .map(|lib| opds::Entry {
@@ -54,6 +50,7 @@ async fn root(libraries: web::Data<Libraries>) -> impl Responder {
                     kind: opds::LinkType::Acquisition.as_str(),
                     rel: None,
                 },
+                updated: lib.modified_at(),
                 content: Some(opds::Content {
                     value: format!("Explore the \"{}\" library", lib.name()).into(),
                     kind: opds::ContentKind::Text,
@@ -78,6 +75,7 @@ async fn library_root(
     let mut entries = vec![opds::Entry {
         title: "View Books".into(),
         content: None,
+        updated: lib.modified_at(),
         link: opds::Link {
             href: format!("{COMMON_ROUTE}/{lib_name}/explore").into(),
             kind: opds::LinkType::Acquisition.as_str(),
@@ -87,7 +85,7 @@ async fn library_root(
 
     entries.extend(
         [
-            ("By Date", "the date they were added", "date_added"),
+            ("By Newest", "the date they were added", "date_added"),
             ("By Title", "title", "title"),
             ("By Author", "author", "author"),
             // TODO: Viewing books sorted by language? That's dumb. Group them instead.
@@ -105,7 +103,7 @@ async fn library_root(
                 kind: opds::LinkType::Acquisition.as_str(),
                 rel: None,
             },
-
+            updated: lib.modified_at(),
             content: Some(opds::Content {
                 value: format!("View books sorted by {sorted_by}").into(),
                 kind: opds::ContentKind::Text,
@@ -114,15 +112,14 @@ async fn library_root(
     );
 
     let feed = opds::AcquisitionFeed {
+        author: FEED_AUTHOR,
+        title: FEED_TITLE,
         xmlns: XMLNS_ATOM,
 
-        // TODO: What should I change this to? Perhaps to a hash of modified at date of metadata.db?
-        id: "urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2".into(),
-        title: FEED_TITLE,
         subtitle: Some(format!("Exploring the \"{lib_name}\" library").into()),
-        author: FEED_AUTHOR,
-        updated: lib.modified_at(),
+        id: lib.acquisition_feed_id().to_string().into(),
         links: vec![opds::Link::start()],
+        updated: lib.modified_at(),
         entries,
     };
 
@@ -170,16 +167,14 @@ async fn explore_catalog(
     let offset = offset.unwrap_or(0);
 
     let feed = opds::AcquisitionFeed {
+        author: FEED_AUTHOR,
+        title: FEED_TITLE,
         xmlns: XMLNS_ATOM,
 
-        // TODO: What should I change this to? Perhaps to a hash of modified at date of metadata.db?
-        id: "urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2".into(),
-        title: FEED_TITLE,
-        subtitle: None,
-        author: FEED_AUTHOR,
-        updated: lib.modified_at(),
+        id: lib.acquisition_feed_id().to_string().into(),
         links: vec![opds::Link::start()],
-
+        updated: lib.modified_at(),
+        subtitle: None,
         entries: vec![],
     };
 

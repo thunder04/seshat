@@ -8,6 +8,8 @@ use eyre::bail;
 use time::OffsetDateTime;
 use tokio::fs;
 
+use crate::utils::hash_str;
+
 /// Handles all Calibre libraries. It's responsible for reading the metadata.db file and
 /// performing search operation of books.
 pub struct Libraries {
@@ -54,6 +56,7 @@ pub struct Library {
     root_path: PathBuf,
     metadata_db: Pool,
     name: String,
+    acquisition_feed_id: String,
 }
 
 impl Library {
@@ -76,6 +79,7 @@ impl Library {
         debug!(mtime = ?modified_at, lib_name = %name, "Opened \"metadata.db\"");
 
         Ok(Self {
+            acquisition_feed_id: format!("urn:seshat:lib-{}", hash_str(&name)),
             metadata_db,
             modified_at,
             root_path,
@@ -93,5 +97,9 @@ impl Library {
 
     pub fn root_path(&self) -> &Path {
         &self.root_path
+    }
+
+    pub fn acquisition_feed_id(&self) -> &str {
+        &self.acquisition_feed_id
     }
 }

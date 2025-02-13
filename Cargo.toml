@@ -40,3 +40,5 @@ clap = { version = "4.5.29", features = [
     "derive",
     "suggestions",
 ] }
+sha3 = "0.10.8"
+base16ct = "0.2.0"
