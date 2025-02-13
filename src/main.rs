@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate tracing;
 
-pub mod entities;
 pub mod library;
+pub mod metadata_entities;
 mod router;
 pub mod utils;
 

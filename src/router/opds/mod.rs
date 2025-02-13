@@ -1,12 +1,12 @@
-mod types;
+mod opds_models;
 
 use std::borrow::Cow;
 
 use actix_web::{HttpResponse, Responder, get, http::header, web};
+use opds_models as opds;
 use quick_xml::se::to_string;
 use serde::Deserialize;
 use time::OffsetDateTime;
-use types as t;
 
 use crate::library::Libraries;
 
@@ -14,7 +14,7 @@ pub const COMMON_ROUTE: &str = "/opds";
 
 const XMLNS_ATOM: &str = "http://www.w3.org/2005/Atom";
 const FEED_TITLE: Cow<'static, str> = Cow::Borrowed("Seshat – OPDS Catalog");
-const FEED_AUTHOR: t::Author = t::Author {
+const FEED_AUTHOR: opds::Author = opds::Author {
     uri: Cow::Borrowed("https://github.com/thunder04"),
     name: Cow::Borrowed("Thunder04"),
 };
@@ -27,7 +27,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 #[get("/")]
 async fn root(libraries: web::Data<Libraries>) -> impl Responder {
-    let feed = t::AcquisitionFeed {
+    let feed = opds::AcquisitionFeed {
         xmlns: XMLNS_ATOM,
 
         // TODO: What should I change this to? Perhaps to a hash of modified at dates of all
@@ -36,7 +36,7 @@ async fn root(libraries: web::Data<Libraries>) -> impl Responder {
         title: FEED_TITLE,
         subtitle: Some("Explore all available libraries".into()),
         author: FEED_AUTHOR,
-        links: vec![t::Link::start()],
+        links: vec![opds::Link::start()],
 
         // updated_at is set as the library with the most recent change.
         updated: libraries
@@ -47,16 +47,16 @@ async fn root(libraries: web::Data<Libraries>) -> impl Responder {
 
         entries: libraries
             .all_libraries()
-            .map(|lib| t::Entry {
+            .map(|lib| opds::Entry {
                 title: lib.name().to_string().into(),
-                link: t::Link {
+                link: opds::Link {
                     href: format!("{COMMON_ROUTE}/{}", lib.name()).into(),
-                    kind: t::LinkType::Acquisition.as_str(),
+                    kind: opds::LinkType::Acquisition.as_str(),
                     rel: None,
                 },
-                content: Some(t::Content {
+                content: Some(opds::Content {
                     value: format!("Explore the \"{}\" library", lib.name()).into(),
-                    kind: t::ContentKind::Text,
+                    kind: opds::ContentKind::Text,
                 }),
             })
             .collect(),
@@ -75,12 +75,12 @@ async fn library_root(
         return HttpResponse::NotFound().body("The library doesn't exist");
     };
 
-    let mut entries = vec![t::Entry {
+    let mut entries = vec![opds::Entry {
         title: "View Books".into(),
         content: None,
-        link: t::Link {
+        link: opds::Link {
             href: format!("{COMMON_ROUTE}/{lib_name}/explore").into(),
-            kind: t::LinkType::Acquisition.as_str(),
+            kind: opds::LinkType::Acquisition.as_str(),
             rel: None,
         },
     }];
@@ -98,22 +98,22 @@ async fn library_root(
             ("By Tags", "tags", "tags"),
         ]
         .into_iter()
-        .map(|(title, sorted_by, sort)| t::Entry {
+        .map(|(title, sorted_by, sort)| opds::Entry {
             title: title.to_string().into(),
-            link: t::Link {
+            link: opds::Link {
                 href: format!("{COMMON_ROUTE}/{lib_name}/explore?sort={sort}").into(),
-                kind: t::LinkType::Acquisition.as_str(),
+                kind: opds::LinkType::Acquisition.as_str(),
                 rel: None,
             },
 
-            content: Some(t::Content {
+            content: Some(opds::Content {
                 value: format!("View books sorted by {sorted_by}").into(),
-                kind: t::ContentKind::Text,
+                kind: opds::ContentKind::Text,
             }),
         }),
     );
 
-    let feed = t::AcquisitionFeed {
+    let feed = opds::AcquisitionFeed {
         xmlns: XMLNS_ATOM,
 
         // TODO: What should I change this to? Perhaps to a hash of modified at date of metadata.db?
@@ -122,7 +122,7 @@ async fn library_root(
         subtitle: Some(format!("Exploring the \"{lib_name}\" library").into()),
         author: FEED_AUTHOR,
         updated: lib.modified_at(),
-        links: vec![t::Link::start()],
+        links: vec![opds::Link::start()],
         entries,
     };
 
@@ -169,7 +169,7 @@ async fn explore_catalog(
     let limit = limit.unwrap_or(25).clamp(1, 50);
     let offset = offset.unwrap_or(0);
 
-    let feed = t::AcquisitionFeed {
+    let feed = opds::AcquisitionFeed {
         xmlns: XMLNS_ATOM,
 
         // TODO: What should I change this to? Perhaps to a hash of modified at date of metadata.db?
@@ -178,7 +178,7 @@ async fn explore_catalog(
         subtitle: None,
         author: FEED_AUTHOR,
         updated: lib.modified_at(),
-        links: vec![t::Link::start()],
+        links: vec![opds::Link::start()],
 
         entries: vec![],
     };

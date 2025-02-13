@@ -1,5 +1,5 @@
 [package]
-description = "A OPDS catalog viewer for Calibre libraries."
+description = "An OPDS Catalog viewer for Calibre libraries."
 name = "seshat"
 version = "0.1.0"
 edition = "2024"
@@ -34,4 +34,9 @@ tokio = { version = "1.43.0", features = [
     "sync",
     "macros",
 ] }
-clap = { version = "4.5.29", features = ["cargo", "color", "derive", "suggestions"] }
+clap = { version = "4.5.29", features = [
+    "cargo",
+    "color",
+    "derive",
+    "suggestions",
+] }

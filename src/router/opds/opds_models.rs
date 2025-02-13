@@ -1,4 +1,4 @@
-//! The ordering of struct fields is done as listed [in the specification](https://specs.opds.io/opds-1.2#511-relationship-between-atom-and-dublin-core-metadata).
+// The ordering of struct fields is done as listed [in the specification](https://specs.opds.io/opds-1.2#511-relationship-between-atom-and-dublin-core-metadata).
 
 use std::borrow::Cow;
 
