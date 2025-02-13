@@ -1,6 +1,6 @@
 mod opds_models;
 
-use std::borrow::Cow;
+use std::{borrow::Cow, num::NonZeroUsize};
 
 use actix_web::{HttpResponse, Responder, get, http::header, web};
 use opds_models as opds;
@@ -8,14 +8,14 @@ use quick_xml::se::to_string;
 use serde::Deserialize;
 use time::OffsetDateTime;
 
-use crate::library::Libraries;
+use crate::library::{BooksSortType, Libraries, Library};
 
 pub const COMMON_ROUTE: &str = "/opds";
 
 const XMLNS_ATOM: &str = "http://www.w3.org/2005/Atom";
-const FEED_TITLE: Cow<'static, str> = Cow::Borrowed("Seshat – OPDS Catalog");
+const FEED_TITLE: &str = "Seshat – OPDS Catalog";
 const FEED_AUTHOR: opds::Author = opds::Author {
-    uri: Cow::Borrowed("https://github.com/thunder04"),
+    uri: Some(Cow::Borrowed("https://github.com/thunder04")),
     name: Cow::Borrowed("Thunder04"),
 };
 
@@ -27,62 +27,73 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 #[get("/")]
 async fn root(libraries: web::Data<Libraries>) -> impl Responder {
-    let feed = opds::AcquisitionFeed {
-        author: FEED_AUTHOR,
-        title: FEED_TITLE,
-        xmlns: XMLNS_ATOM,
+    let mut updated_at = OffsetDateTime::UNIX_EPOCH;
+    let entries = libraries
+        .get_all()
+        .map(|lib| {
+            // Calculate the feed's "updated" field while we're at it.
+            if lib.updated_at() > updated_at {
+                updated_at = lib.updated_at();
+            }
 
-        subtitle: Some("Explore all available libraries".into()),
-        links: vec![opds::Link::start()],
-        id: "urn:seshat:root".into(),
-        // updated_at is set as the library with the most recent change.
-        updated: libraries
-            .all_libraries()
-            .map(|lib| lib.modified_at())
-            .max()
-            .unwrap_or(OffsetDateTime::UNIX_EPOCH),
-        entries: libraries
-            .all_libraries()
-            .map(|lib| opds::Entry {
-                id: lib.acquisition_feed_id().to_string().into(),
-                title: lib.name().to_string().into(),
-                link: opds::Link {
-                    href: format!("{COMMON_ROUTE}/{}", lib.name()).into(),
-                    kind: opds::LinkType::Acquisition.as_str(),
-                    rel: None,
-                },
-                updated: lib.modified_at(),
+            opds::Entry {
+                id: lib.acquisition_feed_id().to_string(),
+                title: lib.name().to_string(),
+                updated: lib.updated_at(),
+                authors: vec![],
+                categories: vec![],
                 content: Some(opds::Content {
-                    value: format!("Explore the \"{}\" library", lib.name()).into(),
+                    value: format!("Explore the \"{}\" library", lib.name()),
                     kind: opds::ContentKind::Text,
                 }),
-            })
-            .collect(),
-    };
+                links: vec![opds::Link {
+                    href: Cow::Owned(format!("{COMMON_ROUTE}/{}", lib.name())),
+                    kind: opds::LinkType::Acquisition.as_str(),
+                    rel: None,
+                }],
+            }
+        })
+        .collect();
 
     HttpResponse::Ok()
         .insert_header(header::ContentType(mime::TEXT_XML))
-        .body(to_string(&feed).expect("serialization failed"))
+        .body(
+            to_string(&opds::Feed {
+                xmlns: XMLNS_ATOM,
+
+                id: "urn:seshat:root".to_string(),
+                title: FEED_TITLE.to_string(),
+                subtitle: Some("Explore all available libraries".to_string()),
+                updated: updated_at,
+                authors: vec![FEED_AUTHOR],
+                links: vec![opds::Link::start()],
+                entries,
+            })
+            .expect("serialization failed"),
+        )
 }
 
 #[get("/{lib_name}/")]
 async fn library_root(
-    lib_name: web::Path<String>, libraries: web::Data<Libraries>,
+    libraries: web::Data<Libraries>,
+    lib_name: web::Path<String>,
 ) -> impl Responder {
-    let Some(lib) = libraries.get_library(&lib_name) else {
+    let Some(lib) = libraries.get(&lib_name) else {
         return HttpResponse::NotFound().body("The library doesn't exist");
     };
 
     let mut entries = vec![opds::Entry {
-        id: lib.acquisition_feed_id().to_string().into(),
+        id: lib.acquisition_feed_id().to_string(),
         title: "View Books".into(),
+        updated: lib.updated_at(),
+        authors: vec![],
+        categories: vec![],
         content: None,
-        updated: lib.modified_at(),
-        link: opds::Link {
-            href: format!("{COMMON_ROUTE}/{lib_name}/explore").into(),
+        links: vec![opds::Link {
+            href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_name}/explore")),
             kind: opds::LinkType::Acquisition.as_str(),
             rel: None,
-        },
+        }],
     }];
 
     entries.extend(
@@ -99,89 +110,104 @@ async fn library_root(
         ]
         .into_iter()
         .map(|(title, sorted_by, sort)| opds::Entry {
-            id: format!("{}-by_{sort}", lib.acquisition_feed_id()).into(),
-            title: title.to_string().into(),
-            link: opds::Link {
-                href: format!("{COMMON_ROUTE}/{lib_name}/explore?sort={sort}").into(),
-                kind: opds::LinkType::Acquisition.as_str(),
-                rel: None,
-            },
-            updated: lib.modified_at(),
+            id: lib.acquisition_feed_id().to_string(),
+            title: title.to_string(),
+            updated: lib.updated_at(),
+            authors: vec![],
+            categories: vec![],
             content: Some(opds::Content {
-                value: format!("View books sorted by {sorted_by}").into(),
+                value: format!("View books sorted by {sorted_by}"),
                 kind: opds::ContentKind::Text,
             }),
+            links: vec![opds::Link {
+                href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_name}/explore?sort={sort}")),
+                kind: opds::LinkType::Acquisition.as_str(),
+                rel: None,
+            }],
         }),
     );
 
-    let feed = opds::AcquisitionFeed {
-        author: FEED_AUTHOR,
-        title: FEED_TITLE,
-        xmlns: XMLNS_ATOM,
-
-        subtitle: Some(format!("Exploring the \"{lib_name}\" library").into()),
-        id: lib.acquisition_feed_id().to_string().into(),
-        links: vec![opds::Link::start()],
-        updated: lib.modified_at(),
-        entries,
-    };
-
     HttpResponse::Ok()
         .insert_header(header::ContentType(mime::TEXT_XML))
-        .body(to_string(&feed).expect("serialization failed"))
-}
+        .body(
+            to_string(&opds::Feed {
+                xmlns: XMLNS_ATOM,
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum ExploreCatalogSortType {
-    DateAdded,
-    Title,
-    Author,
-    #[serde(rename = "lang")]
-    Language,
-    Publisher,
-    Rating,
-    Series,
-    Tags,
+                id: lib.acquisition_feed_id().to_string(),
+                title: FEED_TITLE.to_string(),
+                subtitle: Some(format!("Exploring the \"{lib_name}\" library").to_string()),
+                updated: lib.updated_at(),
+                authors: vec![FEED_AUTHOR],
+                links: vec![opds::Link::start()],
+                entries,
+            })
+            .expect("serialization failed"),
+        )
 }
 
 #[derive(Deserialize)]
 struct ExploreCatalogQuery {
-    sort: Option<ExploreCatalogSortType>,
-    offset: Option<u32>,
-    limit: Option<u32>,
+    sort: Option<BooksSortType>,
+    offset: Option<usize>,
+    limit: Option<NonZeroUsize>,
 }
 
 #[get("/{lib_name}/explore/")]
 async fn explore_catalog(
-    lib_name: web::Path<String>, query: web::Query<ExploreCatalogQuery>,
+    query: web::Query<ExploreCatalogQuery>,
     libraries: web::Data<Libraries>,
+    lib_name: web::Path<String>,
 ) -> impl Responder {
-    let Some(lib) = libraries.get_library(&lib_name) else {
+    let Some(lib) = libraries.get(&lib_name) else {
         return HttpResponse::NotFound().body("The library doesn't exist");
     };
 
-    let ExploreCatalogQuery {
-        sort,
-        offset,
-        limit,
-    } = query.into_inner();
-    let limit = limit.unwrap_or(25).clamp(1, 50);
-    let offset = offset.unwrap_or(0);
+    let sort = query.sort.unwrap_or(BooksSortType::DateAdded);
+    let offset = query.offset.unwrap_or(0);
+    let limit = query
+        .limit
+        .unwrap_or(unsafe { NonZeroUsize::new_unchecked(25) })
+        .clamp(Library::MIN_PAGE_SIZE, Library::MAX_PAGE_SIZE);
 
-    let feed = opds::AcquisitionFeed {
-        author: FEED_AUTHOR,
-        title: FEED_TITLE,
-        xmlns: XMLNS_ATOM,
+    // TODO: Construct FullBook
+    // Idea: SELECT DISTINCT other entities, based on fetched books
 
-        id: lib.acquisition_feed_id().to_string().into(),
-        links: vec![opds::Link::start()],
-        updated: lib.modified_at(),
-        subtitle: None,
-        entries: vec![],
-    };
+    let (entries, next_page) = lib
+        .fetch_books(limit, offset, sort, move |book| {
+            Ok(opds::Entry {
+                id: book.uri(),
+                title: book.title.to_string(),
+                updated: book.last_modified_at,
+                authors: vec![],
+                categories: vec![],
+                content: Some(opds::Content {
+                    kind: opds::ContentKind::Text,
+                    value: "Hi".into(),
+                }),
+                links: vec![opds::Link {
+                    kind: opds::LinkType::Acquisition.as_str(),
+                    href: "https://example.com".into(),
+                    rel: None,
+                }],
+            })
+        })
+        .await
+        .unwrap(); // TODO: Better error handling
 
     HttpResponse::Ok()
         .insert_header(header::ContentType(mime::TEXT_XML))
-        .body(to_string(&feed).expect("serialization failed"))
+        .body(
+            to_string(&opds::Feed {
+                xmlns: XMLNS_ATOM,
+
+                id: lib.acquisition_feed_id().to_string(),
+                title: FEED_TITLE.to_string(),
+                subtitle: Some(format!("Exploring the \"{lib_name}\" library").to_string()),
+                updated: lib.updated_at(),
+                authors: vec![FEED_AUTHOR],
+                links: vec![opds::Link::start()],
+                entries,
+            })
+            .expect("serialization failed"),
+        )
 }

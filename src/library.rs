@@ -1,14 +1,16 @@
 use std::{
     collections::HashMap,
+    num::NonZeroUsize,
     path::{Path, PathBuf},
 };
 
 use async_sqlite::{Pool, PoolBuilder, rusqlite::OpenFlags};
 use eyre::bail;
+use serde::Deserialize;
 use time::OffsetDateTime;
 use tokio::fs;
 
-use crate::utils::hash_str;
+use crate::{metadata_entities::Book, utils::hash_str};
 
 /// Handles all Calibre libraries. It's responsible for reading the metadata.db file and
 /// performing search operation of books.
@@ -41,11 +43,11 @@ impl Libraries {
         Ok(Self { entries })
     }
 
-    pub fn get_library(&self, name: &str) -> Option<&Library> {
+    pub fn get(&self, name: &str) -> Option<&Library> {
         self.entries.get(name)
     }
 
-    pub fn all_libraries(&self) -> impl Iterator<Item = &Library> {
+    pub fn get_all(&self) -> impl Iterator<Item = &Library> {
         self.entries.values()
     }
 }
@@ -59,7 +61,39 @@ pub struct Library {
     acquisition_feed_id: String,
 }
 
+#[derive(Debug, Deserialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum BooksSortType {
+    DateAdded,
+    Title,
+    Author,
+    #[serde(rename = "lang")]
+    Language,
+    Publisher,
+    Rating,
+    Series,
+    Tags,
+}
+
+impl BooksSortType {
+    pub fn as_sql_column(&self) -> &'static str {
+        match self {
+            Self::DateAdded => "timestamp",
+            Self::Title => "title",
+            Self::Author => "author_sort",
+            Self::Language => "lang",
+            Self::Publisher => "publisher",
+            Self::Rating => "rating",
+            Self::Series => "series",
+            Self::Tags => "tags",
+        }
+    }
+}
+
 impl Library {
+    pub const MIN_PAGE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1) };
+    pub const MAX_PAGE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(50) };
+
     async fn new(name: String, lib_path: PathBuf) -> eyre::Result<Self> {
         let root_path = fs::canonicalize(&lib_path).await?;
         debug!(lib_name = %name, "Canonicalized path {lib_path:?} => {root_path:?}");
@@ -87,19 +121,57 @@ impl Library {
         })
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn acquisition_feed_id(&self) -> &str {
+        &self.acquisition_feed_id
     }
 
-    pub fn modified_at(&self) -> OffsetDateTime {
-        self.modified_at
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn root_path(&self) -> &Path {
         &self.root_path
     }
 
-    pub fn acquisition_feed_id(&self) -> &str {
-        &self.acquisition_feed_id
+    pub fn updated_at(&self) -> OffsetDateTime {
+        self.modified_at
+    }
+
+    /// Fetches a page of books from the library. Returns `true` if there is a next page.
+    pub async fn fetch_books<F, T>(
+        &self,
+        limit: NonZeroUsize,
+        offset: usize,
+        sort_by: BooksSortType,
+        mut f: F,
+    ) -> eyre::Result<(Vec<T>, bool)>
+    where
+        F: FnMut(Book) -> async_sqlite::rusqlite::Result<T> + Send + Sync + 'static,
+        T: Send + 'static,
+    {
+        Ok(self
+            .metadata_db
+            .conn(move |conn| {
+                // Goal: For each book
+                // 1. Left join books_authors_link table
+                // 2. Left join books_identifier_link table
+                // 3. Left join books_tags_link table
+                // 0. books will be on the left side of the join
+
+                let mut stmt = conn.prepare_cached("SELECT * FROM books LIMIT ?1 OFFSET ?2")?;
+                let mut rows =
+                    stmt.query_map([limit.get() + 1, offset], |row| Book::try_from(row))?;
+                let mut results = Vec::with_capacity(limit.get().min(128));
+
+                for _ in 0..limit.get() {
+                    match rows.next().transpose()? {
+                        Some(row) => results.push(f(row)?),
+                        _ => return Ok((results, false)),
+                    }
+                }
+
+                Ok((results, rows.next().is_some()))
+            })
+            .await?)
     }
 }

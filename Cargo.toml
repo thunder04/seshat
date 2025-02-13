@@ -8,8 +8,8 @@ authors = ["thunder04"]
 [dependencies]
 # Logging and error handling crates
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-tracing = "0.1.41"
 color-eyre = "0.6.3"
+tracing = "0.1.41"
 eyre = "0.6.12"
 
 # (De)serialization crates
@@ -22,23 +22,19 @@ actix-web = { version = "4.9.0" }
 mime = "0.3.17"
 
 # Other crates
+clap = { version = "4.5.29", features = ["cargo", "derive", "suggestions"] }
+async-sqlite = { version = "0.5.0", features = ["time"] }
 parking_lot = "0.12.3"
-async-sqlite = { version = "0.5.0", features = ["bundled", "time"] }
+base16ct = "0.2.0"
+sha3 = "0.10.8"
+
 tokio = { version = "1.43.0", features = [
     "rt-multi-thread",
     "parking_lot",
-    "fs",
     "process",
     "signal",
+    "macros",
     "time",
     "sync",
-    "macros",
+    "fs",
 ] }
-clap = { version = "4.5.29", features = [
-    "cargo",
-    "color",
-    "derive",
-    "suggestions",
-] }
-sha3 = "0.10.8"
-base16ct = "0.2.0"

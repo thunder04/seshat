@@ -1,22 +1,40 @@
+use std::path::PathBuf;
+
 use async_sqlite::rusqlite::{Error, Row};
 use time::OffsetDateTime;
+
+pub struct FullBook {
+    pub id: i64,
+    pub uuid: Option<String>,
+    pub title: String,
+    pub added_at: Option<OffsetDateTime>,
+    pub published_at: Option<OffsetDateTime>,
+    pub last_modified_at: OffsetDateTime,
+    pub path: PathBuf,
+    pub cover_path: Option<PathBuf>,
+    pub authors: Vec<Author>,
+    pub languages: Vec<Language>,
+    pub ratings: Option<Rating>,
+    pub series: Option<Series>,
+    pub tags: Vec<Tag>,
+    pub comments: Option<Comment>,
+    pub data: Vec<Data>,
+}
 
 #[derive(Debug)]
 pub struct Book {
     pub id: i64,
     pub title: String,
-    pub sort: Option<String>,
-    pub timestamp: Option<OffsetDateTime>,
-    pub pubdate: Option<OffsetDateTime>,
+    pub added_at: Option<OffsetDateTime>,
+    pub published_at: Option<OffsetDateTime>,
+    pub last_modified_at: OffsetDateTime,
     pub series_index: f64,
-    pub author_sort: Option<String>,
     pub isbn: Option<String>,
     pub lccn: Option<String>,
     pub path: String,
     pub flags: i32,
     pub uuid: Option<String>,
     pub has_cover: Option<bool>,
-    pub last_modified: OffsetDateTime,
 }
 
 impl TryFrom<&Row<'_>> for Book {
@@ -26,19 +44,28 @@ impl TryFrom<&Row<'_>> for Book {
         Ok(Self {
             id: row.get("id")?,
             title: row.get("title")?,
-            sort: row.get("sort")?,
-            timestamp: row.get("timestamp")?,
-            pubdate: row.get("pubdate")?,
+            added_at: row.get("timestamp")?,
+            published_at: row.get("pubdate")?,
             series_index: row.get("series_index")?,
-            author_sort: row.get("author_sort")?,
             isbn: row.get("isbn")?,
             lccn: row.get("lccn")?,
             path: row.get("path")?,
             flags: row.get("flags")?,
             uuid: row.get("uuid")?,
             has_cover: row.get("has_cover")?,
-            last_modified: row.get("last_modified")?,
+            last_modified_at: row.get("last_modified")?,
         })
+    }
+}
+
+impl Book {
+    /// Returns the URI of the book.
+    pub fn uri(&self) -> String {
+        if let Some(uuid) = &self.uuid {
+            return format!("urn:uuid:{uuid}");
+        }
+
+        format!("urn:id:{}", self.id)
     }
 }
 
@@ -202,7 +229,6 @@ impl TryFrom<&Row<'_>> for Author {
 pub struct Language {
     pub id: i64,
     pub lang_code: String,
-    pub link: String,
 }
 
 impl TryFrom<&Row<'_>> for Language {
@@ -210,9 +236,8 @@ impl TryFrom<&Row<'_>> for Language {
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: row.get("id")?,
             lang_code: row.get("lang_code")?,
-            link: row.get("link")?,
+            id: row.get("id")?,
         })
     }
 }
@@ -242,7 +267,6 @@ impl TryFrom<&Row<'_>> for Publisher {
 pub struct Rating {
     pub id: i64,
     pub rating: i64,
-    pub link: String,
 }
 
 impl TryFrom<&Row<'_>> for Rating {
@@ -250,9 +274,8 @@ impl TryFrom<&Row<'_>> for Rating {
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: row.get("id")?,
             rating: row.get("rating")?,
-            link: row.get("link")?,
+            id: row.get("id")?,
         })
     }
 }

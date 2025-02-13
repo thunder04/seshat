@@ -1,5 +1,3 @@
-// The ordering of struct fields is done as listed [in the specification](https://specs.opds.io/opds-1.2#511-relationship-between-atom-and-dublin-core-metadata).
-
 use std::borrow::Cow;
 
 use serde::Serialize;
@@ -7,38 +5,55 @@ use time::{OffsetDateTime, serde::rfc3339};
 
 #[derive(Debug, Serialize)]
 #[serde(rename = "feed", rename_all = "kebab-case")]
-pub struct AcquisitionFeed {
-    pub id: Cow<'static, str>,
-    #[serde(with = "rfc3339")]
-    pub updated: OffsetDateTime,
-    pub title: Cow<'static, str>,
-    pub subtitle: Option<Cow<'static, str>>,
-    pub author: Author,
-    #[serde(rename = "link")]
-    pub links: Vec<Link>,
-    #[serde(rename = "entry")]
-    pub entries: Vec<Entry>,
-
+pub struct Feed {
     #[serde(rename = "@xlmns")]
     pub xmlns: &'static str,
+
+    pub id: String,
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    #[serde(with = "rfc3339")]
+    pub updated: OffsetDateTime,
+    /// Specification says there must be at least one author.
+    #[serde(rename = "author", skip_serializing_if = "Vec::is_empty")]
+    pub authors: Vec<Author>,
+    #[serde(rename = "link", skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<Link>,
+    #[serde(rename = "entry", skip_serializing_if = "Vec::is_empty")]
+    pub entries: Vec<Entry>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Entry {
-    pub id: Cow<'static, str>,
-    pub title: Cow<'static, str>,
-    pub link: Link,
+    pub id: String,
+    pub title: String,
     #[serde(with = "rfc3339")]
     pub updated: OffsetDateTime,
+    /// Specification says there must be at least one author.
+    #[serde(rename = "author", skip_serializing_if = "Vec::is_empty")]
+    pub authors: Vec<Author>,
+    #[serde(rename = "category", skip_serializing_if = "Vec::is_empty")]
+    pub categories: Vec<Category>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<Content>,
+    #[serde(rename = "link", skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<Link>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Author {
     pub name: Cow<'static, str>,
-    pub uri: Cow<'static, str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uri: Option<Cow<'static, str>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Category {
+    pub term: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,8 +61,7 @@ pub struct Author {
 pub struct Link {
     #[serde(rename = "@href")]
     pub href: Cow<'static, str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "@rel")]
+    #[serde(rename = "@rel", skip_serializing_if = "Option::is_none")]
     pub rel: Option<&'static str>,
     #[serde(rename = "@type")]
     pub kind: &'static str,
@@ -97,7 +111,7 @@ pub struct Content {
     #[serde(rename = "@type")]
     pub kind: ContentKind,
     #[serde(rename = "$text")]
-    pub value: Cow<'static, str>,
+    pub value: String,
 }
 
 #[non_exhaustive]
@@ -105,4 +119,5 @@ pub struct Content {
 #[serde(rename_all = "kebab-case")]
 pub enum ContentKind {
     Text,
+    Html,
 }
