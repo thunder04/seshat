@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate tracing;
 
+pub mod errors;
 pub mod library;
 pub mod metadata_entities;
 mod router;
@@ -11,6 +12,8 @@ use std::{path::PathBuf, time::Duration};
 use actix_web::{App, HttpServer, middleware as mw, web::Data};
 use clap::Parser;
 use library::Libraries;
+
+pub type Result<T, E = errors::AppError> = std::result::Result<T, E>;
 
 #[derive(clap::Parser)]
 #[group(id = "lib", multiple = true)]
