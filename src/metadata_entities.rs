@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use async_sqlite::rusqlite::{Error, Row};
 use time::OffsetDateTime;
 
+#[derive(Debug)]
 pub struct FullBook {
     pub id: i64,
     pub uuid: Option<String>,
@@ -14,10 +15,8 @@ pub struct FullBook {
     pub cover_path: Option<PathBuf>,
     pub authors: Vec<Author>,
     pub languages: Vec<Language>,
-    pub ratings: Option<Rating>,
-    pub series: Option<Series>,
     pub tags: Vec<Tag>,
-    pub comments: Option<Comment>,
+    pub comment: Option<Comment>,
     pub data: Vec<Data>,
 }
 

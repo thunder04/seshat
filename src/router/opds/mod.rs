@@ -163,6 +163,14 @@ async fn explore_catalog(
         .unwrap_or(unsafe { NonZeroUsize::new_unchecked(25) })
         .clamp(Library::MIN_PAGE_SIZE, Library::MAX_PAGE_SIZE);
 
+    // TODO: Construct FullBook
+    // Idea: SELECT DISTINCT other entities, based on fetched books
+    //
+    // SELECT * FROM authors WHERE id IN (SELECT id FROM books_authors_link WHERE book_id IN
+    // (SELECT id FROM books OFFSET 0 LIMIT 40))
+    //
+    // that's the basic idea
+
     let (entries, next_page) = lib
         .fetch_books(limit, offset, sort, move |book| {
             Ok(models::Entry {

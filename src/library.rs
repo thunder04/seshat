@@ -144,21 +144,79 @@ impl Library {
         offset: usize,
         sort_by: BooksSortType,
         mut f: F,
-    ) -> eyre::Result<(Vec<T>, bool)>
+    ) -> crate::Result<(Vec<T>, bool)>
     where
+        // Still to be decided.
         F: FnMut(Book) -> async_sqlite::rusqlite::Result<T> + Send + Sync + 'static,
         T: Send + 'static,
     {
+        const BASE_QUERY: &str = r#"
+            SELECT
+               	b.id AS id,
+               	b.uuid AS uuid,
+               	b.title AS title,
+               	b.timestamp AS added_at,
+               	b.pubdate AS published_at,
+               	b.last_modified AS last_modified_at,
+               	b.path AS path,
+               	c.text AS comment
+            FROM books as b
+          		LEFT JOIN comments as c ON c.book = b.id
+           	ORDER BY author_sort
+           	LIMIT ?1 OFFSET ?2"#;
+
+        const RETRIEVE_BOOK_AUTHORS: &str = r#"
+            SELECT
+                a.name AS author_name,
+                link.book AS book_id
+            FROM books_authors_link as link
+               	INNER JOIN (
+              		SELECT id AS b_id FROM books
+              		ORDER BY author_sort
+              		LIMIT ?1 OFFSET ?2
+               	) ON book_id = b_id
+               	INNER JOIN authors AS a ON link.author = a.id;"#;
+
+        const RETRIEVE_BOOK_LANGUAGES: &str = r#"
+            SELECT
+                l.lang_code AS lang_code,
+                link.book AS book_id
+            FROM books_languages_link as link
+           	INNER JOIN (
+          		SELECT id AS b_id FROM books
+          		ORDER BY author_sort
+          		LIMIT ?1 OFFSET ?2
+           	) ON book_id = b_id
+           	INNER JOIN languages AS l ON link.lang_code = l.id;"#;
+
+        const RETRIEVE_BOOK_TAGS: &str = r#"
+            SELECT
+                link.book AS book_id,
+                t.name AS tag_name
+            FROM books_tags_link as link
+           	INNER JOIN (
+          		SELECT id AS b_id FROM books
+          		ORDER BY author_sort
+          		LIMIT ?1 OFFSET ?2
+           	) ON book_id = b_id
+           	INNER JOIN tags AS t ON link.tag = t.id;"#;
+
+        const RETRIEVE_BOOK_DATA: &str = r#"
+            SELECT
+                d.uncompressed_size AS file_size,
+                d.name AS file_name,
+                d.format AS format,
+                d.book AS book_id
+            FROM data AS d
+           	WHERE book_id IN (
+          		SELECT id AS b_id FROM books
+          		ORDER BY author_sort
+          		LIMIT ?1 OFFSET ?2);"#;
+
         Ok(self
             .metadata_db
             .conn(move |conn| {
-                // Goal: For each book
-                // 1. Left join books_authors_link table
-                // 2. Left join books_identifier_link table
-                // 3. Left join books_tags_link table
-                // 0. books will be on the left side of the join
-
-                let mut stmt = conn.prepare_cached("SELECT * FROM books LIMIT ?1 OFFSET ?2")?;
+                let mut stmt = conn.prepare_cached(BASE_QUERY)?;
                 let mut rows =
                     stmt.query_map([limit.get() + 1, offset], |row| Book::try_from(row))?;
                 let mut results = Vec::with_capacity(limit.get().min(128));
