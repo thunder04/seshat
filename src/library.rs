@@ -64,35 +64,6 @@ pub struct Library {
     acquisition_feed_id: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Copy)]
-#[serde(rename_all = "snake_case")]
-pub enum BooksSortType {
-    DateAdded,
-    Title,
-    Author,
-    #[serde(rename = "lang")]
-    Language,
-    Publisher,
-    Rating,
-    Series,
-    Tags,
-}
-
-impl BooksSortType {
-    pub fn as_sql_column(&self) -> &'static str {
-        match self {
-            Self::DateAdded => "timestamp",
-            Self::Title => "title",
-            Self::Author => "author_sort",
-            Self::Language => "lang",
-            Self::Publisher => "publisher",
-            Self::Rating => "rating",
-            Self::Series => "series",
-            Self::Tags => "tags",
-        }
-    }
-}
-
 impl Library {
     pub const MIN_PAGE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1) };
     pub const MAX_PAGE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(50) };
@@ -149,81 +120,19 @@ impl Library {
         &self,
         limit: NonZeroUsize,
         offset: usize,
-        sort_by: BooksSortType,
+        order_by: OrderBooksBy,
         mut f: F,
     ) -> crate::Result<bool>
     where
         F: FnMut(FullBook) -> rusqlite::Result<()> + Send + Sync + 'static,
     {
-        const BASE_QUERY: &str = r#"
-            SELECT
-               	b.id AS id,
-               	b.uuid AS uuid,
-               	b.title AS title,
-               	b.timestamp AS added_at,
-               	b.pubdate AS published_at,
-               	b.has_cover AS has_cover,
-               	b.last_modified AS last_modified_at,
-               	b.path AS path,
-               	c.text AS comment
-            FROM books as b
-          		LEFT JOIN comments as c ON c.book = b.id
-           	ORDER BY author_sort
-           	LIMIT ?1 OFFSET ?2"#;
-
-        const RETRIEVE_BOOK_AUTHORS: &str = r#"
-            SELECT
-                a.name AS author_name,
-                link.book AS book_id
-            FROM books_authors_link as link
-               	INNER JOIN (
-              		SELECT id AS b_id FROM books
-              		ORDER BY author_sort
-              		LIMIT ?1 OFFSET ?2
-               	) ON book_id = b_id
-               	INNER JOIN authors AS a ON link.author = a.id;"#;
-
-        const RETRIEVE_BOOK_LANGUAGES: &str = r#"
-            SELECT
-                l.lang_code AS lang_code,
-                link.book AS book_id
-            FROM books_languages_link as link
-           	INNER JOIN (
-          		SELECT id AS b_id FROM books
-          		ORDER BY author_sort
-          		LIMIT ?1 OFFSET ?2
-           	) ON book_id = b_id
-           	INNER JOIN languages AS l ON link.lang_code = l.id;"#;
-
-        const RETRIEVE_BOOK_TAGS: &str = r#"
-            SELECT
-                link.book AS book_id,
-                t.name AS tag_name
-            FROM books_tags_link as link
-           	INNER JOIN (
-          		SELECT id AS b_id FROM books
-          		ORDER BY author_sort
-          		LIMIT ?1 OFFSET ?2
-           	) ON book_id = b_id
-           	INNER JOIN tags AS t ON link.tag = t.id;"#;
-
-        const RETRIEVE_BOOK_DATA: &str = r#"
-            SELECT
-                d.uncompressed_size AS file_size,
-                d.name AS file_name,
-                d.format AS format,
-                d.book AS book_id
-            FROM data AS d
-           	WHERE book_id IN (
-          		SELECT id AS b_id FROM books
-          		ORDER BY author_sort
-          		LIMIT ?1 OFFSET ?2);"#;
+        let sql_queries = order_by.as_sql_query();
 
         Ok(self
             .metadata_db
             .conn(move |conn| {
                 let mut authors = conn
-                    .prepare_cached(RETRIEVE_BOOK_AUTHORS)?
+                    .prepare_cached(sql_queries.retrieve_book_authors())?
                     .query_map([limit.get(), offset], |row| Author::try_from(row))?
                     .try_fold(HashMap::new(), |mut acc, row| -> rusqlite::Result<_> {
                         let row = row?;
@@ -233,7 +142,7 @@ impl Library {
                     })?;
 
                 let mut languages = conn
-                    .prepare_cached(RETRIEVE_BOOK_LANGUAGES)?
+                    .prepare_cached(sql_queries.retrieve_book_languages())?
                     .query_map([limit.get(), offset], |row| Language::try_from(row))?
                     .try_fold(HashMap::new(), |mut acc, row| -> rusqlite::Result<_> {
                         let row = row?;
@@ -243,7 +152,7 @@ impl Library {
                     })?;
 
                 let mut tags = conn
-                    .prepare_cached(RETRIEVE_BOOK_TAGS)?
+                    .prepare_cached(sql_queries.retrieve_book_tags())?
                     .query_map([limit.get(), offset], |row| Tag::try_from(row))?
                     .try_fold(HashMap::new(), |mut acc, row| -> rusqlite::Result<_> {
                         let row = row?;
@@ -253,7 +162,7 @@ impl Library {
                     })?;
 
                 let mut data = conn
-                    .prepare_cached(RETRIEVE_BOOK_DATA)?
+                    .prepare_cached(sql_queries.retrieve_book_data())?
                     .query_map([limit.get(), offset], |row| Data::try_from(row))?
                     .try_fold(HashMap::new(), |mut acc, row| -> rusqlite::Result<_> {
                         let row = row?;
@@ -262,7 +171,7 @@ impl Library {
                         Ok(acc)
                     })?;
 
-                let mut stmt = conn.prepare_cached(BASE_QUERY)?;
+                let mut stmt = conn.prepare_cached(sql_queries.base_query())?;
                 let mut books =
                     stmt.query_map([limit.get() + 1, offset], |row| FullBook::try_from(row))?;
 
@@ -283,5 +192,150 @@ impl Library {
                 Ok(books.next().is_some())
             })
             .await?)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum OrderBooksBy {
+    DateAdded,
+    Title,
+    Author,
+    // TODO: Group by the following options instead.
+    // Language,
+    // Tags,
+    // Publisher,
+    // Series,
+}
+
+impl OrderBooksBy {
+    pub fn as_sql_query(&self) -> &'static dyn sql_queries::SqlQueries {
+        match self {
+            Self::DateAdded => &sql_queries::OrderedByDateAdded,
+            Self::Author => &sql_queries::OrderedByAuthor,
+            Self::Title => &sql_queries::OrderedByTitle,
+        }
+    }
+}
+
+mod sql_queries {
+    use const_format::formatcp;
+
+    pub trait SqlQueries: Send + Sync + 'static {
+        fn base_query(&self) -> &'static str;
+        fn retrieve_book_authors(&self) -> &'static str;
+        fn retrieve_book_languages(&self) -> &'static str;
+        fn retrieve_book_tags(&self) -> &'static str;
+        fn retrieve_book_data(&self) -> &'static str;
+    }
+
+    macro_rules! impl_sql_queries {
+        ($($struct_name: ident: [$sort_by: literal]),+ $(,)?) => {$(
+            pub struct $struct_name;
+
+            impl SqlQueries for $struct_name {
+                fn base_query(&self) -> &'static str {
+                    const {
+                        formatcp!(
+                            r#"SELECT
+                               	b.id AS id,
+                               	b.uuid AS uuid,
+                               	b.title AS title,
+                               	b.timestamp AS added_at,
+                               	b.pubdate AS published_at,
+                               	b.has_cover AS has_cover,
+                               	b.last_modified AS last_modified_at,
+                               	b.path AS path,
+                               	c.text AS comment
+                            FROM books as b
+                      		LEFT JOIN comments as c ON c.book = b.id
+                           	ORDER BY {sort_by}
+                           	LIMIT ?1 OFFSET ?2"#,
+
+                            sort_by = $sort_by
+                        )
+                    }
+                }
+
+                fn retrieve_book_authors(&self) -> &'static str {
+                    const {
+                        formatcp!(
+                            r#"SELECT
+                                a.name AS author_name,
+                                link.book AS book_id
+                            FROM books_authors_link as link
+                           	INNER JOIN (
+                          		SELECT id AS b_id FROM books
+                          		ORDER BY {sort_by}
+                          		LIMIT ?1 OFFSET ?2
+                           	) ON book_id = b_id
+                           	INNER JOIN authors AS a ON link.author = a.id;"#,
+
+                            sort_by = $sort_by
+                        )
+                    }
+                }
+
+                fn retrieve_book_languages(&self) -> &'static str {
+                    const {
+                        formatcp!(
+                            r#"SELECT
+                                l.lang_code AS lang_code,
+                                link.book AS book_id
+                            FROM books_languages_link as link
+                           	INNER JOIN (
+                          		SELECT id AS b_id FROM books
+                          		ORDER BY {sort_by}
+                          		LIMIT ?1 OFFSET ?2
+                           	) ON book_id = b_id
+                           	INNER JOIN languages AS l ON link.lang_code = l.id;"#,
+
+                            sort_by = $sort_by
+                        )
+                    }
+                }
+
+                fn retrieve_book_tags(&self) -> &'static str {
+                    const {
+                        formatcp!(
+                            r#"SELECT
+                                link.book AS book_id,
+                                t.name AS tag_name
+                            FROM books_tags_link as link
+                           	INNER JOIN (
+                          		SELECT id AS b_id FROM books
+                          		ORDER BY {sort_by}
+                          		LIMIT ?1 OFFSET ?2
+                           	) ON book_id = b_id
+                           	INNER JOIN tags AS t ON link.tag = t.id;"#,
+
+                            sort_by = $sort_by
+                        )
+                    }
+                }
+
+                fn retrieve_book_data(&self) -> &'static str {
+                    const {
+                        formatcp!(
+                            r#"SELECT
+                                d.uncompressed_size AS file_size,
+                                d.name AS file_name,
+                                d.format AS format,
+                                d.book AS book_id
+                            FROM data AS d
+                           	WHERE book_id IN (SELECT id AS b_id FROM books ORDER BY {sort_by} LIMIT ?1 OFFSET ?2);"#,
+
+                            sort_by = $sort_by
+                        )
+                    }
+                }
+            }
+        )+};
+    }
+
+    impl_sql_queries! {
+        OrderedByDateAdded: ["timestamp"],
+        OrderedByAuthor: ["author_sort"],
+        OrderedByTitle: ["sort"],
     }
 }

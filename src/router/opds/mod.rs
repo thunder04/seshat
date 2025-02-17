@@ -9,7 +9,7 @@ use time::OffsetDateTime;
 
 use crate::{
     errors::AppError,
-    library::{BooksSortType, Libraries, Library},
+    library::{Libraries, Library, OrderBooksBy},
 };
 
 pub const COMMON_ROUTE: &str = "/opds";
@@ -141,7 +141,7 @@ async fn library_root(
 
 #[derive(Deserialize)]
 struct ExploreCatalogQuery {
-    sort: Option<BooksSortType>,
+    sort: Option<OrderBooksBy>,
     offset: Option<usize>,
     limit: Option<NonZeroUsize>,
 }
@@ -156,7 +156,7 @@ async fn explore_catalog(
         return Err(AppError::LibraryNotFound);
     };
 
-    let sort = query.sort.unwrap_or(BooksSortType::DateAdded);
+    let sort = query.sort.unwrap_or(OrderBooksBy::DateAdded);
     let offset = query.offset.unwrap_or(0);
     let limit = query
         .limit
