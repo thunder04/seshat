@@ -4,13 +4,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use async_sqlite::{Pool, PoolBuilder, rusqlite::OpenFlags};
+use async_sqlite::{Pool, PoolBuilder, rusqlite};
 use eyre::bail;
 use serde::Deserialize;
 use time::OffsetDateTime;
 use tokio::fs;
 
-use crate::{metadata_entities::Book, utils::hash_str};
+use crate::{
+    metadata_entities::{Author, Data, FullBook, Language, Tag},
+    utils::hash_str,
+};
 
 /// Handles all Calibre libraries. It's responsible for reading the metadata.db file and
 /// performing search operation of books.
@@ -106,7 +109,7 @@ impl Library {
             .map(OffsetDateTime::from)
             .expect("neither modified_at and created_at dates are supported in this platform");
         let metadata_db = PoolBuilder::new()
-            .flags(OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .flags(rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .path(metadata_db_path)
             .open()
             .await?;
@@ -138,17 +141,19 @@ impl Library {
     }
 
     /// Fetches a page of books from the library. Returns `true` if there is a next page.
-    pub async fn fetch_books<F, T>(
+    #[allow(
+        clippy::unwrap_or_default,
+        reason = "Default impl takes away type info from the compiler"
+    )]
+    pub async fn fetch_books<F>(
         &self,
         limit: NonZeroUsize,
         offset: usize,
         sort_by: BooksSortType,
         mut f: F,
-    ) -> crate::Result<(Vec<T>, bool)>
+    ) -> crate::Result<bool>
     where
-        // Still to be decided.
-        F: FnMut(Book) -> async_sqlite::rusqlite::Result<T> + Send + Sync + 'static,
-        T: Send + 'static,
+        F: FnMut(FullBook) -> rusqlite::Result<()> + Send + Sync + 'static,
     {
         const BASE_QUERY: &str = r#"
             SELECT
@@ -157,6 +162,7 @@ impl Library {
                	b.title AS title,
                	b.timestamp AS added_at,
                	b.pubdate AS published_at,
+               	b.has_cover AS has_cover,
                	b.last_modified AS last_modified_at,
                	b.path AS path,
                	c.text AS comment
@@ -216,19 +222,65 @@ impl Library {
         Ok(self
             .metadata_db
             .conn(move |conn| {
+                let mut authors = conn
+                    .prepare_cached(RETRIEVE_BOOK_AUTHORS)?
+                    .query_map([limit.get(), offset], |row| Author::try_from(row))?
+                    .try_fold(HashMap::new(), |mut acc, row| -> rusqlite::Result<_> {
+                        let row = row?;
+
+                        acc.entry(row.book_id).or_insert(vec![]).push(row.name);
+                        Ok(acc)
+                    })?;
+
+                let mut languages = conn
+                    .prepare_cached(RETRIEVE_BOOK_LANGUAGES)?
+                    .query_map([limit.get(), offset], |row| Language::try_from(row))?
+                    .try_fold(HashMap::new(), |mut acc, row| -> rusqlite::Result<_> {
+                        let row = row?;
+
+                        acc.entry(row.book_id).or_insert(vec![]).push(row.lang_code);
+                        Ok(acc)
+                    })?;
+
+                let mut tags = conn
+                    .prepare_cached(RETRIEVE_BOOK_TAGS)?
+                    .query_map([limit.get(), offset], |row| Tag::try_from(row))?
+                    .try_fold(HashMap::new(), |mut acc, row| -> rusqlite::Result<_> {
+                        let row = row?;
+
+                        acc.entry(row.book_id).or_insert(vec![]).push(row.name);
+                        Ok(acc)
+                    })?;
+
+                let mut data = conn
+                    .prepare_cached(RETRIEVE_BOOK_DATA)?
+                    .query_map([limit.get(), offset], |row| Data::try_from(row))?
+                    .try_fold(HashMap::new(), |mut acc, row| -> rusqlite::Result<_> {
+                        let row = row?;
+
+                        acc.entry(row.book_id).or_insert(vec![]).push(row);
+                        Ok(acc)
+                    })?;
+
                 let mut stmt = conn.prepare_cached(BASE_QUERY)?;
-                let mut rows =
-                    stmt.query_map([limit.get() + 1, offset], |row| Book::try_from(row))?;
-                let mut results = Vec::with_capacity(limit.get().min(128));
+                let mut books =
+                    stmt.query_map([limit.get() + 1, offset], |row| FullBook::try_from(row))?;
 
                 for _ in 0..limit.get() {
-                    match rows.next().transpose()? {
-                        Some(row) => results.push(f(row)?),
-                        _ => return Ok((results, false)),
-                    }
+                    let Some(book) = books.next().transpose()? else {
+                        return Ok(false);
+                    };
+
+                    f(FullBook {
+                        languages: languages.remove(&book.id).unwrap_or_default(),
+                        authors: authors.remove(&book.id).unwrap_or_default(),
+                        data: data.remove(&book.id).unwrap_or_default(),
+                        tags: tags.remove(&book.id).unwrap_or_default(),
+                        ..book
+                    })?;
                 }
 
-                Ok((results, rows.next().is_some()))
+                Ok(books.next().is_some())
             })
             .await?)
     }

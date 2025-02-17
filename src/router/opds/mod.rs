@@ -12,7 +12,7 @@ use crate::{
     library::{BooksSortType, Libraries, Library},
 };
 
-pub const COMMON_ROUTE: &str = "/models";
+pub const COMMON_ROUTE: &str = "/opds";
 
 const XMLNS_ATOM: &str = "http://www.w3.org/2005/Atom";
 const FEED_TITLE: &str = "Seshat – OPDS Catalog";
@@ -163,35 +163,30 @@ async fn explore_catalog(
         .unwrap_or(unsafe { NonZeroUsize::new_unchecked(25) })
         .clamp(Library::MIN_PAGE_SIZE, Library::MAX_PAGE_SIZE);
 
-    // TODO: Construct FullBook
-    // Idea: SELECT DISTINCT other entities, based on fetched books
-    //
-    // SELECT * FROM authors WHERE id IN (SELECT id FROM books_authors_link WHERE book_id IN
-    // (SELECT id FROM books OFFSET 0 LIMIT 40))
-    //
-    // that's the basic idea
-
-    let (entries, next_page) = lib
+    let _ = lib
         .fetch_books(limit, offset, sort, move |book| {
-            Ok(models::Entry {
-                id: book.uri(),
-                title: book.title.to_string(),
-                updated: book.last_modified_at,
-                authors: vec![],
-                categories: vec![],
-                content: Some(models::Content {
-                    kind: models::ContentKind::Text,
-                    value: "Hi".into(),
-                }),
-                links: vec![models::Link {
-                    kind: models::LinkType::Acquisition.as_str(),
-                    href: "https://example.com".into(),
-                    rel: None,
-                }],
-            })
+            debug!("{book:#?}");
+
+            // Ok(models::Entry {
+            //     id: book.uri(),
+            //     title: book.title.to_string(),
+            //     updated: book.last_modified_at,
+            //     authors: vec![],
+            //     categories: vec![],
+            //     content: Some(models::Content {
+            //         kind: models::ContentKind::Text,
+            //         value: "Hi".into(),
+            //     }),
+            //     links: vec![models::Link {
+            //         kind: models::LinkType::Acquisition.as_str(),
+            //         href: "https://example.com".into(),
+            //         rel: None,
+            //     }],
+            // })
+
+            Ok(())
         })
-        .await
-        .unwrap(); // TODO: Better error handling
+        .await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(header::ContentType(mime::TEXT_XML))
@@ -203,6 +198,6 @@ async fn explore_catalog(
             updated: lib.updated_at(),
             authors: vec![FEED_AUTHOR],
             links: vec![models::Link::start()],
-            entries,
+            entries: vec![],
         })?))
 }
