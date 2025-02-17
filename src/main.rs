@@ -52,7 +52,7 @@ async fn main() -> eyre::Result<()> {
 
     HttpServer::new(move || {
         let app = App::new()
-            .wrap(mw::NormalizePath::new(mw::TrailingSlash::Always))
+            .wrap(mw::NormalizePath::new(mw::TrailingSlash::Trim))
             .app_data(libraries.clone())
             .configure(router::config);
 

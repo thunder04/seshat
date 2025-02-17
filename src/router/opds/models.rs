@@ -95,6 +95,7 @@ impl LinkType {
 }
 
 pub enum LinkRel {
+    Acquisition,
     Image,
     Start,
 }
@@ -102,7 +103,8 @@ pub enum LinkRel {
 impl LinkRel {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Image => "https://opds-spec.org/image",
+            Self::Acquisition => "http://opds-spec.org/acquisition",
+            Self::Image => "http://opds-spec.org/image",
             Self::Start => "start",
         }
     }

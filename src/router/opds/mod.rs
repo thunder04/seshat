@@ -27,7 +27,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(explore_catalog);
 }
 
-#[get("/")]
+#[get("")]
 async fn root(libraries: web::Data<Libraries>) -> crate::Result<impl Responder> {
     let mut updated_at = OffsetDateTime::UNIX_EPOCH;
     let entries = libraries
@@ -71,7 +71,7 @@ async fn root(libraries: web::Data<Libraries>) -> crate::Result<impl Responder> 
         })?))
 }
 
-#[get("/{lib_name}/")]
+#[get("/{lib_name}")]
 async fn library_root(
     libraries: web::Data<Libraries>,
     lib_name: web::Path<String>,
@@ -141,7 +141,7 @@ struct ExploreCatalogQuery {
     limit: Option<NonZeroUsize>,
 }
 
-#[get("/{lib_name}/explore/")]
+#[get("/{lib_name}/explore")]
 async fn explore_catalog(
     query: web::Query<ExploreCatalogQuery>,
     libraries: web::Data<Libraries>,
@@ -158,50 +158,65 @@ async fn explore_catalog(
         .unwrap_or(Library::DEFAULT_PAGE_SIZE)
         .clamp(Library::MIN_PAGE_SIZE, Library::MAX_PAGE_SIZE);
 
-    let (entries, has_next_page) = lib
-        .fetch_books::<Vec<_>, _>(limit, offset, order_by, |mut acc, book| {
-            acc.push(models::Entry {
-                id: book.uri(),
-                title: book.title,
-                updated: book.last_modified_at,
-                authors: book
-                    .authors
-                    .into_iter()
-                    .map(|author| models::Author {
-                        name: Cow::Owned(author),
-                        uri: None,
-                    })
-                    .collect(),
-                categories: book
-                    .tags
-                    .into_iter()
-                    .map(|tag| models::Category { term: tag })
-                    .collect(),
-                content: book.content.map(|content| models::Content {
-                    kind: models::ContentKind::Html,
-                    value: content,
-                }),
-                links: book
-                    .data
-                    .into_iter()
-                    .map(|data| models::Link {
-                        // TODO: what do I put here?
-                        href: Cow::Owned(format!("/what do I put here?")),
-                        kind: mime_guess::from_ext(&data.format)
-                            .first_raw()
-                            .unwrap_or("*/*"),
-                        rel: None,
-                    })
-                    .chain(book.cover_path.into_iter().map(|cover_path| models::Link {
-                        href: Cow::Owned(format!("/what do I put here?")),
-                        rel: Some(models::LinkRel::Image.as_str()),
-                        kind: mime::JPEG.as_str(),
-                    }))
-                    .collect(),
-            });
+    let ((entries, lib_name), has_next_page) = lib
+        .fetch_books(
+            limit,
+            offset,
+            order_by,
+            (vec![], lib_name.into_inner()),
+            move |(mut acc, lib_name), book| {
+                acc.push(models::Entry {
+                    id: book.uri(),
+                    title: book.title,
+                    updated: book.last_modified_at,
+                    authors: book
+                        .authors
+                        .into_iter()
+                        .map(|author| models::Author {
+                            name: Cow::Owned(author),
+                            uri: None,
+                        })
+                        .collect(),
+                    categories: book
+                        .tags
+                        .into_iter()
+                        .map(|tag| models::Category { term: tag })
+                        .collect(),
+                    content: book.content.map(|content| models::Content {
+                        kind: models::ContentKind::Html,
+                        value: content,
+                    }),
+                    links: book
+                        .data
+                        .into_iter()
+                        .map(|data| models::Link {
+                            rel: Some(models::LinkRel::Acquisition.as_str()),
+                            href: Cow::Owned(format!(
+                                "{}/{lib_name}/{}/{}.{}",
+                                super::lib_content::COMMON_ROUTE,
+                                book.path,
+                                data.file_name,
+                                data.format
+                            )),
+                            kind: mime_guess::from_ext(&data.format)
+                                .first_raw()
+                                .unwrap_or("*/*"),
+                        })
+                        .chain(book.has_cover.then(|| models::Link {
+                            rel: Some(models::LinkRel::Image.as_str()),
+                            kind: mime::JPEG.as_str(),
+                            href: Cow::Owned(format!(
+                                "{}/{lib_name}/{}/cover.jpg",
+                                super::lib_content::COMMON_ROUTE,
+                                book.path,
+                            )),
+                        }))
+                        .collect(),
+                });
 
-            acc
-        })
+                (acc, lib_name)
+            },
+        )
         .await?;
 
     Ok(HttpResponse::Ok()

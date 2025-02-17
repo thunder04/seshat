@@ -147,11 +147,12 @@ impl Library {
         limit: NonZeroUsize,
         offset: usize,
         order_by: OrderBooksBy,
+        mut acc: A,
         mut f: F,
     ) -> crate::Result<(A, bool)>
     where
         F: FnMut(A, FullBook) -> A + Send + 'static,
-        A: Default + Send + 'static,
+        A: Send + 'static,
     {
         Ok(self
             .metadata_db
@@ -201,8 +202,6 @@ impl Library {
                 let mut stmt = conn.prepare_cached(sql_query.retrieve_books())?;
                 let mut books =
                     stmt.query_map([limit.get() + 1, offset], |row| FullBook::try_from(row))?;
-
-                let mut acc = A::default();
 
                 for _ in 0..limit.get() {
                     let Some(book) = books.next().transpose()? else {

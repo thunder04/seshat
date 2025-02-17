@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use async_sqlite::rusqlite::{Error, Row};
 use time::OffsetDateTime;
 
@@ -11,8 +9,8 @@ pub struct FullBook {
     pub added_at: Option<OffsetDateTime>,
     pub published_at: Option<OffsetDateTime>,
     pub last_modified_at: OffsetDateTime,
-    pub path: PathBuf,
-    pub cover_path: Option<PathBuf>,
+    pub path: String,
+    pub has_cover: bool,
     pub authors: Vec<String>,
     pub languages: Vec<String>,
     pub tags: Vec<String>,
@@ -24,12 +22,11 @@ impl TryFrom<&Row<'_>> for FullBook {
     type Error = Error;
 
     fn try_from(row: &Row<'_>) -> Result<Self, Self::Error> {
-        let path = PathBuf::from(row.get::<_, String>("path")?);
-        let has_cover = row.get::<_, bool>("has_cover")?;
+        let path = row.get::<_, String>("path")?;
 
         Ok(Self {
-            cover_path: has_cover.then(|| path.join("cover.jpg")),
             last_modified_at: row.get("last_modified_at")?,
+            has_cover: row.get::<_, bool>("has_cover")?,
             published_at: row.get("published_at")?,
             added_at: row.get("added_at")?,
             content: row.get("comment")?,
@@ -116,11 +113,15 @@ impl TryFrom<&Row<'_>> for Data {
     type Error = Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let mut format: String = row.get("format")?;
+
+        format.make_ascii_lowercase();
+
         Ok(Self {
-            book_id: row.get("book_id")?,
-            format: row.get("format")?,
             file_size: row.get("file_size")?,
             file_name: row.get("file_name")?,
+            book_id: row.get("book_id")?,
+            format,
         })
     }
 }
