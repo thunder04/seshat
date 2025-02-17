@@ -53,6 +53,7 @@ pub struct Author {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Category {
+    #[serde(rename = "@term")]
     pub term: String,
 }
 

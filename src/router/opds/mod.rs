@@ -96,15 +96,9 @@ async fn library_root(
 
     entries.extend(
         [
-            ("By Newest", "the date they were added", "date_added"),
-            ("By Title", "title", "title"),
-            ("By Author", "author", "author"),
-            // TODO: Viewing books sorted by language? That's dumb. Group them instead.
-            ("By Language", "language", "lang"),
-            ("By Publisher", "publisher", "publisher"),
-            ("By Rating", "rating", "rating"),
-            ("By Series", "series", "series"),
-            ("By Tags", "tags", "tags"),
+            ("Sorted by Newest", "the date they were added", "date_added"),
+            ("Sorted by Title", "title", "title"),
+            ("Sorted by Author", "author", "author"),
         ]
         .into_iter()
         .map(|(title, sorted_by, sort)| models::Entry {
@@ -141,7 +135,8 @@ async fn library_root(
 
 #[derive(Deserialize)]
 struct ExploreCatalogQuery {
-    sort: Option<OrderBooksBy>,
+    #[serde(rename = "sort")]
+    order_by: Option<OrderBooksBy>,
     offset: Option<usize>,
     limit: Option<NonZeroUsize>,
 }
@@ -156,35 +151,51 @@ async fn explore_catalog(
         return Err(AppError::LibraryNotFound);
     };
 
-    let sort = query.sort.unwrap_or(OrderBooksBy::DateAdded);
+    let order_by = query.order_by.unwrap_or(OrderBooksBy::DateAdded);
     let offset = query.offset.unwrap_or(0);
     let limit = query
         .limit
-        .unwrap_or(unsafe { NonZeroUsize::new_unchecked(25) })
+        .unwrap_or(Library::DEFAULT_PAGE_SIZE)
         .clamp(Library::MIN_PAGE_SIZE, Library::MAX_PAGE_SIZE);
 
-    let _ = lib
-        .fetch_books(limit, offset, sort, move |book| {
-            debug!("{book:#?}");
+    let (entries, has_next_page) = lib
+        .fetch_books::<Vec<_>, _>(limit, offset, order_by, move |mut acc, book| {
+            acc.push(models::Entry {
+                id: book.uri(),
+                title: book.title,
+                updated: book.last_modified_at,
+                authors: book
+                    .authors
+                    .into_iter()
+                    .map(|author| models::Author {
+                        name: Cow::Owned(author),
+                        uri: None,
+                    })
+                    .collect(),
+                categories: book
+                    .tags
+                    .into_iter()
+                    .map(|tag| models::Category { term: tag })
+                    .collect(),
+                content: book.content.map(|content| models::Content {
+                    kind: models::ContentKind::Html,
+                    value: content,
+                }),
+                links: book
+                    .data
+                    .into_iter()
+                    .map(|data| models::Link {
+                        // TODO: what do I put here?
+                        href: Cow::Owned(format!("/what do I put here?")),
+                        kind: mime_guess::from_ext(&data.format)
+                            .first_raw()
+                            .unwrap_or("*/*"),
+                        rel: None,
+                    })
+                    .collect(),
+            });
 
-            // Ok(models::Entry {
-            //     id: book.uri(),
-            //     title: book.title.to_string(),
-            //     updated: book.last_modified_at,
-            //     authors: vec![],
-            //     categories: vec![],
-            //     content: Some(models::Content {
-            //         kind: models::ContentKind::Text,
-            //         value: "Hi".into(),
-            //     }),
-            //     links: vec![models::Link {
-            //         kind: models::LinkType::Acquisition.as_str(),
-            //         href: "https://example.com".into(),
-            //         rel: None,
-            //     }],
-            // })
-
-            Ok(())
+            acc
         })
         .await?;
 
@@ -198,6 +209,6 @@ async fn explore_catalog(
             updated: lib.updated_at(),
             authors: vec![FEED_AUTHOR],
             links: vec![models::Link::start()],
-            entries: vec![],
+            entries,
         })?))
 }

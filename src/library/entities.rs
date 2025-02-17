@@ -16,7 +16,7 @@ pub struct FullBook {
     pub authors: Vec<String>,
     pub languages: Vec<String>,
     pub tags: Vec<String>,
-    pub comment: Option<String>,
+    pub content: Option<String>,
     pub data: Vec<Data>,
 }
 
@@ -32,7 +32,7 @@ impl TryFrom<&Row<'_>> for FullBook {
             last_modified_at: row.get("last_modified_at")?,
             published_at: row.get("published_at")?,
             added_at: row.get("added_at")?,
-            comment: row.get("comment")?,
+            content: row.get("comment")?,
             title: row.get("title")?,
             uuid: row.get("uuid")?,
             id: row.get("id")?,
