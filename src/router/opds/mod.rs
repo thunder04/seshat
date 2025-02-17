@@ -159,7 +159,7 @@ async fn explore_catalog(
         .clamp(Library::MIN_PAGE_SIZE, Library::MAX_PAGE_SIZE);
 
     let (entries, has_next_page) = lib
-        .fetch_books::<Vec<_>, _>(limit, offset, order_by, move |mut acc, book| {
+        .fetch_books::<Vec<_>, _>(limit, offset, order_by, |mut acc, book| {
             acc.push(models::Entry {
                 id: book.uri(),
                 title: book.title,
@@ -192,6 +192,11 @@ async fn explore_catalog(
                             .unwrap_or("*/*"),
                         rel: None,
                     })
+                    .chain(book.cover_path.into_iter().map(|cover_path| models::Link {
+                        href: Cow::Owned(format!("/what do I put here?")),
+                        rel: Some(models::LinkRel::Image.as_str()),
+                        kind: mime::JPEG.as_str(),
+                    }))
                     .collect(),
             });
 
