@@ -18,7 +18,7 @@ pub enum AppError {
     #[cfg_attr(debug_assertions, error("rusqilite error: {0}"))]
     Db(#[from] async_sqlite::Error),
 
-    #[cfg_attr(not(debug_assertions), error("{}", match self.0.kind() {
+    #[cfg_attr(not(debug_assertions), error("{}", match .0.kind() {
         io::ErrorKind::NotFound | io::ErrorKind::NotADirectory => "File does not exist",
         _ => "Internal server error",
     }))]
