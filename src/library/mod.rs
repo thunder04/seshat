@@ -11,7 +11,7 @@ use async_sqlite::{Pool, PoolBuilder, rusqlite};
 use entities::{Author, Language, Tag};
 pub use entities::{Data, FullBook};
 use eyre::bail;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tokio::fs;
 
@@ -62,7 +62,7 @@ impl Libraries {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum OrderBooksBy {
     DateAdded,
@@ -140,6 +140,14 @@ impl Library {
 
     pub fn updated_at(&self) -> OffsetDateTime {
         self.modified_at
+    }
+
+    /// Returns the number of books in the library.
+    pub async fn len(&self) -> crate::Result<usize> {
+        Ok(self
+            .metadata_db
+            .conn(|conn| conn.query_row("SELECT COUNT(*) FROM books", (), |row| row.get(0)))
+            .await?)
     }
 
     /// Fetches a page of books from the library. Returns `true` if there is a next page.

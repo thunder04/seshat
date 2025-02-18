@@ -1508,6 +1508,7 @@ dependencies = [
  "parking_lot",
  "quick-xml",
  "serde",
+ "serde_urlencoded",
  "sha3",
  "thiserror",
  "time",

@@ -118,6 +118,7 @@ impl Link {
 pub enum LinkType {
     Acquisition,
     Navigation,
+    // TODO: https://specs.opds.io/opds-1.2#3-search
     Search,
 }
 
@@ -136,6 +137,10 @@ pub enum LinkRel {
     SortNew,
     Image,
     Start,
+    First,
+    Last,
+    Next,
+    Previous,
 }
 
 impl LinkRel {
@@ -145,6 +150,10 @@ impl LinkRel {
             Self::SortNew => "http://opds-spec.org/sort/new",
             Self::Image => "http://opds-spec.org/image",
             Self::Start => "start",
+            Self::First => "first",
+            Self::Last => "last",
+            Self::Next => "next",
+            Self::Previous => "previous",
         }
     }
 }

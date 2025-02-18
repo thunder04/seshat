@@ -15,6 +15,10 @@ pub enum AppError {
     XmlSerialization(#[from] quick_xml::SeError),
 
     #[cfg_attr(not(debug_assertions), error("Internal server error"))]
+    #[cfg_attr(debug_assertions, error("serde_urlencoded error: {0}"))]
+    UrlEncoding(#[from] serde_urlencoded::ser::Error),
+
+    #[cfg_attr(not(debug_assertions), error("Internal server error"))]
     #[cfg_attr(debug_assertions, error("rusqilite error: {0}"))]
     Db(#[from] async_sqlite::Error),
 

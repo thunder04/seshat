@@ -16,6 +16,7 @@ eyre = "0.6.12"
 # (De)serialization crates
 quick-xml = { version = "0.37.2", features = ["serde-types", "serialize"] }
 time = { version = "0.3.37", features = ["serde"] }
+serde_urlencoded = "0.7.1"
 serde = "1.0.217"
 
 # Web crates

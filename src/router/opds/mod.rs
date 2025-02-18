@@ -3,7 +3,7 @@ mod models;
 use std::{borrow::Cow, num::NonZeroUsize};
 
 use actix_web::{HttpResponse, Responder, get, web};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 use crate::{
@@ -117,7 +117,7 @@ async fn library_root(
     })
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct ExploreCatalogQuery {
     #[serde(rename = "sort")]
     order_by: Option<OrderBooksBy>,
@@ -142,6 +142,7 @@ async fn explore_catalog(
         .unwrap_or(Library::DEFAULT_PAGE_SIZE)
         .clamp(Library::MIN_PAGE_SIZE, Library::MAX_PAGE_SIZE);
 
+    let lib_len = lib.len().await?;
     let ((entries, lib_name), has_next_page) = lib
         .fetch_books(
             limit,
@@ -203,14 +204,72 @@ async fn explore_catalog(
         )
         .await?;
 
+    let mut links = vec![models::Link::start(), models::Link {
+        kind: models::LinkType::Navigation.as_str(),
+        rel: Some(models::LinkRel::First.as_str()),
+        href: Cow::Owned(format!(
+            "{COMMON_ROUTE}/{lib_name}/explore?{}",
+            serde_urlencoded::to_string(&ExploreCatalogQuery {
+                order_by: Some(order_by),
+                limit: Some(limit),
+                offset: Some(0),
+            })?
+        )),
+    }];
+
+    if lib_len > limit.get() {
+        links.push(models::Link {
+            kind: models::LinkType::Navigation.as_str(),
+            rel: Some(models::LinkRel::Last.as_str()),
+            href: Cow::Owned(format!(
+                "{COMMON_ROUTE}/{lib_name}/explore?{}",
+                serde_urlencoded::to_string(&ExploreCatalogQuery {
+                    offset: Some(lib_len.saturating_sub(limit.get())),
+                    order_by: Some(order_by),
+                    limit: Some(limit),
+                })?
+            )),
+        });
+    }
+
+    if offset > 0 {
+        links.push(models::Link {
+            kind: models::LinkType::Navigation.as_str(),
+            rel: Some(models::LinkRel::Previous.as_str()),
+            href: Cow::Owned(format!(
+                "{COMMON_ROUTE}/{lib_name}/explore?{}",
+                serde_urlencoded::to_string(&ExploreCatalogQuery {
+                    offset: Some(offset.saturating_sub(limit.get())),
+                    order_by: Some(order_by),
+                    limit: Some(limit),
+                })?
+            )),
+        });
+    }
+
+    if has_next_page {
+        links.push(models::Link {
+            kind: models::LinkType::Navigation.as_str(),
+            rel: Some(models::LinkRel::Next.as_str()),
+            href: Cow::Owned(format!(
+                "{COMMON_ROUTE}/{lib_name}/explore?{}",
+                serde_urlencoded::to_string(&ExploreCatalogQuery {
+                    offset: Some(offset + limit.get()),
+                    order_by: Some(order_by),
+                    limit: Some(limit),
+                })?
+            )),
+        });
+    }
+
     HttpResponse::Ok().xml(&models::Feed {
         xmlns: XMLNS_ATOM,
         id: lib.acquisition_feed_id().to_string(),
         title: FEED_TITLE.to_string(),
-        subtitle: Some(format!("Exploring the \"{lib_name}\" library").to_string()),
+        subtitle: Some(format!("Exploring the \"{lib_name}\" library")),
         updated: lib.updated_at(),
         authors: vec![FEED_AUTHOR],
-        links: vec![models::Link::start()],
         entries,
+        links,
     })
 }
