@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">5</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">cddc8fa9-6425-4ddc-9fd9-da60f6c9d0b9</dc:identifier>
+        <dc:title>Romeo and Juliet</dc:title>
+        <dc:creator opf:file-as="Shakespeare, William" opf:role="aut">William Shakespeare</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (7.20.0) [https://calibre-ebook.com]</dc:contributor>
+        <dc:date>1998-11-02T00:00:00+00:00</dc:date>
+        <dc:description>&lt;div&gt;
+&lt;p&gt;"Romeo and Juliet" by William Shakespeare is a tragedy likely written during the late 16th century. The play centers on the intense love affair between two young lovers, Romeo Montague and Juliet Capulet, whose families are embroiled in a bitter feud. Their love, while passionate and profound, is met with adversities that ultimately lead to tragic consequences. At the start of the play, a Prologue delivered by the Chorus sets the stage for the tale of forbidden love, revealing the familial conflict that surrounds Romeo and Juliet. The opening scenes depict a public brawl ignited by the feud between the Montagues and Capulets, showcasing the hostility that envelops their lives. As we are introduced to various characters such as Benvolio, Tybalt, and Mercutio, we learn of Romeo's unrequited love for Rosaline. However, this quickly changes when Romeo encounters Juliet at the Capulet ball, where they share a famous and romantic exchange, unwittingly falling in love with each other despite their families' bitter enmity. This initial encounter foreshadows the obstacles they will face as their love story unfolds amidst chaos and conflict. (This is an automatically generated summary.)&lt;/p&gt;&lt;/div&gt;</dc:description>
+        <dc:publisher>Project Gutenberg</dc:publisher>
+        <dc:language>eng</dc:language>
+        <dc:subject>General</dc:subject>
+        <dc:subject>Verona (Italy) -- Drama</dc:subject>
+        <dc:subject>Vendetta -- Drama</dc:subject>
+        <dc:subject>Youth -- Drama</dc:subject>
+        <dc:subject>Romeo (Fictitious character) -- Drama</dc:subject>
+        <dc:subject>Shakespeare</dc:subject>
+        <dc:subject>Juliet (Fictitious character) -- Drama</dc:subject>
+        <dc:subject>English; Irish; Scottish; Welsh</dc:subject>
+        <dc:subject>Conflict of generations -- Drama</dc:subject>
+        <dc:subject>European</dc:subject>
+        <dc:subject>Performing Arts</dc:subject>
+        <dc:subject>Drama</dc:subject>
+        <dc:subject>Theater</dc:subject>
+        <dc:subject>Tragedies</dc:subject>
+        <meta name="calibre:rating" content="10"/>
+        <meta name="calibre:timestamp" content="2025-02-18T10:56:24.213317+00:00"/>
+        <meta name="calibre:title_sort" content="Romeo and Juliet"/>
+    </metadata>
+    <guide>
+        <reference type="cover" title="Cover" href="cover.jpg"/>
+    </guide>
+</package>

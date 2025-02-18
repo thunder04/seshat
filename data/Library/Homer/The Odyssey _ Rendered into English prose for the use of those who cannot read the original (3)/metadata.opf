@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">3</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">1f7cb24a-0337-4c80-89d9-aae6d2a419a9</dc:identifier>
+        <dc:title>The Odyssey / Rendered into English prose for the use of those who cannot read the original</dc:title>
+        <dc:creator opf:file-as="Homer" opf:role="aut">Homer</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (7.20.0) [https://calibre-ebook.com]</dc:contributor>
+        <dc:date>1999-04-02T00:00:00+00:00</dc:date>
+        <dc:publisher>Project Gutenberg</dc:publisher>
+        <dc:language>eng</dc:language>
+        <dc:subject>Homer -- Translations into English</dc:subject>
+        <dc:subject>Epic poetry</dc:subject>
+        <dc:subject>Greek -- Translations into English</dc:subject>
+        <dc:subject>Odysseus</dc:subject>
+        <dc:subject>King of Ithaca (Mythological character)</dc:subject>
+        <meta name="calibre:timestamp" content="2025-02-18T10:56:23.783038+00:00"/>
+        <meta name="calibre:title_sort" content="Odyssey / Rendered into English prose for the use of those who cannot read the original, The"/>
+    </metadata>
+    <guide>
+        <reference type="cover" title="Cover" href="cover.jpg"/>
+    </guide>
+</package>

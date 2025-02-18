@@ -119,7 +119,7 @@ pub enum LinkType {
     Acquisition,
     Navigation,
     // TODO: https://specs.opds.io/opds-1.2#3-search
-    Search,
+    // Search,
 }
 
 impl LinkType {
@@ -127,7 +127,7 @@ impl LinkType {
         match self {
             Self::Acquisition => "application/atom+xml;profile=opds-catalog;kind=acquisition",
             Self::Navigation => "application/atom+xml;profile=opds-catalog;kind=navigation",
-            Self::Search => "application/opensearchdescription+xml",
+            // Self::Search => "application/opensearchdescription+xml",
         }
     }
 }

@@ -134,6 +134,7 @@ async fn explore_catalog(
     let Some(lib) = libraries.get(&lib_name) else {
         return Err(AppError::LibraryNotFound);
     };
+    let lib_len = lib.len().await?;
 
     let order_by = query.order_by.unwrap_or(OrderBooksBy::DateAdded);
     let offset = query.offset.unwrap_or(0);
@@ -142,7 +143,6 @@ async fn explore_catalog(
         .unwrap_or(Library::DEFAULT_PAGE_SIZE)
         .clamp(Library::MIN_PAGE_SIZE, Library::MAX_PAGE_SIZE);
 
-    let lib_len = lib.len().await?;
     let ((entries, lib_name), has_next_page) = lib
         .fetch_books(
             limit,
@@ -203,7 +203,6 @@ async fn explore_catalog(
             },
         )
         .await?;
-
     let mut links = vec![models::Link::start(), models::Link {
         kind: models::LinkType::Navigation.as_str(),
         rel: Some(models::LinkRel::First.as_str()),

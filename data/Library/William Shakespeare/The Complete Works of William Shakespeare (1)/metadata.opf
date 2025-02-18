@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">1</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">29440125-4538-4b72-88b4-d991f4a9316d</dc:identifier>
+        <dc:title>The Complete Works of William Shakespeare</dc:title>
+        <dc:creator opf:file-as="Shakespeare, William" opf:role="aut">William Shakespeare</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (7.20.0) [https://calibre-ebook.com]</dc:contributor>
+        <dc:date>1994-01-02T00:00:00+00:00</dc:date>
+        <dc:publisher>Project Gutenberg</dc:publisher>
+        <dc:language>eng</dc:language>
+        <dc:subject>English drama -- Early modern and Elizabethan</dc:subject>
+        <dc:subject>1500-1600</dc:subject>
+        <meta name="calibre:timestamp" content="2025-02-18T10:56:23.317358+00:00"/>
+        <meta name="calibre:title_sort" content="Complete Works of William Shakespeare, The"/>
+    </metadata>
+    <guide>
+        <reference type="cover" title="Cover" href="cover.jpg"/>
+    </guide>
+</package>

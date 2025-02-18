@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">6</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">fd852cca-be97-41ad-916f-20110314e23a</dc:identifier>
+        <dc:title>Dracula</dc:title>
+        <dc:creator opf:file-as="Stoker, Bram" opf:role="aut">Bram Stoker</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (7.20.0) [https://calibre-ebook.com]</dc:contributor>
+        <dc:date>1995-10-02T00:00:00+00:00</dc:date>
+        <dc:description>&lt;div&gt;
+&lt;p style="font-family: 'Open Sans','Helvetica','Arial','sans-serif'"&gt;"Dracula" by Bram Stoker is a Gothic horror novel written in the late 19th century. The story unfolds through a series of letters, journal entries, and newspaper clippings, primarily following the experiences of Jonathan Harker, a young English solicitor. Harker’s journey takes him to Transylvania, where he encounters the enigmatic Count Dracula, setting a thrilling and mysterious tone that delves into themes of fear, seduction, and the supernatural. The opening of the novel presents Jonathan Harker’s journal entries, marking the beginning of his travels to meet Count Dracula regarding a real estate transaction. Harker describes his train journey through the picturesque landscapes of eastern Europe, highlighting the eerie atmosphere and local superstitions that hint at the challenges he will face. Upon arriving at the Count's castle, Harker senses unease, especially when local villagers express concern and give him protective charms against evil spirits. The tension escalates as Harker meets Dracula, who, while courteous, exhibits strange and unsettling behavior. Kafkaesque and claustrophobic, the initial chapters effectively set the stage for Harker’s realization that he is trapped in Dracula’s world, creating an eerie, suspenseful foundation for the unfolding narrative. (This is an automatically generated summary.)&lt;/p&gt;&lt;/div&gt;</dc:description>
+        <dc:publisher>Project Gutenberg</dc:publisher>
+        <dc:language>eng</dc:language>
+        <dc:subject>Horror tales</dc:subject>
+        <dc:subject>Epistolary fiction</dc:subject>
+        <dc:subject>Gothic fiction</dc:subject>
+        <dc:subject>Vampires -- Fiction</dc:subject>
+        <dc:subject>Dracula</dc:subject>
+        <dc:subject>Count (Fictitious character) -- Fiction</dc:subject>
+        <dc:subject>Transylvania (Romania) -- Fiction</dc:subject>
+        <dc:subject>Whitby (England) -- Fiction</dc:subject>
+        <meta name="calibre:timestamp" content="2025-02-18T10:56:24.457288+00:00"/>
+        <meta name="calibre:title_sort" content="Dracula"/>
+    </metadata>
+    <guide>
+        <reference type="cover" title="Cover" href="cover.jpg"/>
+    </guide>
+</package>

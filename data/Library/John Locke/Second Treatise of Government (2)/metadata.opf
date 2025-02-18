@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">2</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">6e6e5cd4-76b5-49aa-8457-dc2fc35b1c40</dc:identifier>
+        <dc:title>Second Treatise of Government</dc:title>
+        <dc:creator opf:file-as="Locke, John" opf:role="aut">John Locke</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (7.20.0) [https://calibre-ebook.com]</dc:contributor>
+        <dc:date>2005-01-02T00:00:00+00:00</dc:date>
+        <dc:publisher>Project Gutenberg</dc:publisher>
+        <dc:language>eng</dc:language>
+        <dc:subject>Political science -- Early works to 1800</dc:subject>
+        <dc:subject>Toleration -- Early works to 1800</dc:subject>
+        <dc:subject>Liberty -- Early works to 1800</dc:subject>
+        <meta name="calibre:timestamp" content="2025-02-18T10:56:23.533493+00:00"/>
+        <meta name="calibre:title_sort" content="Second Treatise of Government"/>
+    </metadata>
+    <guide>
+        <reference type="cover" title="Cover" href="cover.jpg"/>
+    </guide>
+</package>

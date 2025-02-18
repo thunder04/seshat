@@ -54,6 +54,21 @@ To build for other architectures, substitute the target with one of the followin
 > Only ARMv8-A is tested. Other targets are very likely to work, but it's not guaranteed.
 > In any case, if any issues arise, [create an issue](https://github.com/thunder04/seshat/issues/new).
 
+## Development
+
+During development, you can use the sample library provided in the `data/Library` directory. It contains a couple books downloaded from [Project Gutenberg](https://www.gutenberg.org/).
+To use it, run:
+
+```sh
+cargo run -- --lib:name "Project Gutenberg" --lib:path "./data/Library"
+```
+
+If you prefer `cargo-watch`:
+
+```sh
+cargo watch -x 'run -- --lib:name "Project Gutenberg" --lib:path "./data/Library"'
+```
+
 ## Project Name
 
 The name comes from [Seshat](https://en.wikipedia.org/wiki/Seshat), the ancient Egyptian goddess of writing, wisdom, and knowledge.
