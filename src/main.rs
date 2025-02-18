@@ -30,6 +30,7 @@ pub struct Cli {
 
     /// Enable verbose logging. For greater control, use the $RUST_LOG environment
     /// variable
+    #[cfg_attr(debug_assertions, clap(default_value = "true"))]
     #[clap(short, long, global = true)]
     pub verbose: bool,
 
@@ -45,21 +46,16 @@ pub struct Cli {
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let mut cli = Cli::parse();
-
     install_helpers(cli.verbose)?;
 
     let libraries = Data::new(Libraries::from_cli(&mut cli).await?);
 
     HttpServer::new(move || {
-        let app = App::new()
-            .wrap(mw::NormalizePath::new(mw::TrailingSlash::Trim))
+        App::new()
+            .wrap(mw::Condition::new(cli.verbose, mw::Logger::default()))
+            .wrap(mw::NormalizePath::trim())
             .app_data(libraries.clone())
-            .configure(router::config);
-
-        #[cfg(debug_assertions)]
-        let app = app.wrap(mw::Logger::default());
-
-        app
+            .configure(router::config)
     })
     .keep_alive(Duration::from_secs(30))
     .bind((cli.host, cli.port))?
@@ -69,23 +65,22 @@ async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn install_helpers(verbose_enabled: bool) -> eyre::Result<()> {
+fn install_helpers(verbose: bool) -> eyre::Result<()> {
     use tracing::level_filters::LevelFilter;
     use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default().into_hooks();
     eyre_hook.install()?;
 
-    let default_level_filter = if verbose_enabled || cfg!(debug_assertions) {
-        LevelFilter::DEBUG
-    } else {
-        LevelFilter::INFO
-    };
     let stderr_logs = tracing_subscriber::fmt::layer()
         .with_writer(std::io::stderr)
         .with_filter(
             EnvFilter::builder()
-                .with_default_directive(default_level_filter.into())
+                .with_default_directive(if verbose {
+                    LevelFilter::DEBUG.into()
+                } else {
+                    LevelFilter::INFO.into()
+                })
                 .from_env_lossy(),
         );
 

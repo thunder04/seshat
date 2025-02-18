@@ -25,6 +25,10 @@ pub struct Libraries {
 
 impl Libraries {
     pub async fn from_cli(cli: &mut crate::Cli) -> eyre::Result<Self> {
+        if cli.lib_name.is_empty() || cli.lib_path.is_empty() {
+            bail!("at least one library must be provided");
+        }
+
         let mut paths = std::mem::take(&mut cli.lib_path).into_iter();
         let mut names = std::mem::take(&mut cli.lib_name).into_iter();
         let mut entries = HashMap::new();
@@ -41,6 +45,7 @@ impl Libraries {
                 }
 
                 (None, None) => break,
+
                 _ => bail!("each --lib:name must have a corresponding --lib:path"),
             }
         }

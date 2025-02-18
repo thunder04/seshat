@@ -3,6 +3,43 @@ use std::borrow::Cow;
 use serde::Serialize;
 use time::{OffsetDateTime, serde::rfc3339};
 
+use crate::library::Library;
+
+pub struct LibraryRootEntry {
+    pub title: &'static str,
+    pub description: &'static str,
+    pub sort_by: Option<&'static str>,
+    pub link_rel: Option<LinkRel>,
+}
+
+impl From<(&Library, LibraryRootEntry)> for Entry {
+    fn from((lib, e): (&Library, LibraryRootEntry)) -> Self {
+        let mut href = format!("{}/{}/explore", super::COMMON_ROUTE, lib.name());
+
+        if let Some(sort_by) = e.sort_by {
+            href += "?sort=";
+            href += sort_by;
+        }
+
+        Self {
+            id: lib.acquisition_feed_id().to_string(),
+            title: e.title.to_string(),
+            updated: lib.updated_at(),
+            authors: vec![],
+            categories: vec![],
+            content: Some(Content {
+                value: e.description.to_string(),
+                kind: ContentKind::Text,
+            }),
+            links: vec![Link {
+                kind: LinkType::Acquisition.as_str(),
+                rel: e.link_rel.map(|x| x.as_str()),
+                href: Cow::Owned(href),
+            }],
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename = "feed", rename_all = "kebab-case")]
 pub struct Feed {
@@ -96,6 +133,7 @@ impl LinkType {
 
 pub enum LinkRel {
     Acquisition,
+    SortNew,
     Image,
     Start,
 }
@@ -104,6 +142,7 @@ impl LinkRel {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Acquisition => "http://opds-spec.org/acquisition",
+            Self::SortNew => "http://opds-spec.org/sort/new",
             Self::Image => "http://opds-spec.org/image",
             Self::Start => "start",
         }

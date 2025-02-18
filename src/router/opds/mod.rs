@@ -2,14 +2,14 @@ mod models;
 
 use std::{borrow::Cow, num::NonZeroUsize};
 
-use actix_web::{HttpResponse, Responder, get, http::header, web};
-use quick_xml::se::to_string;
+use actix_web::{HttpResponse, Responder, get, web};
 use serde::Deserialize;
 use time::OffsetDateTime;
 
 use crate::{
     errors::AppError,
     library::{Libraries, Library, OrderBooksBy},
+    utils::HttpResponseBuilderExt as _,
 };
 
 pub const COMMON_ROUTE: &str = "/opds";
@@ -33,7 +33,6 @@ async fn root(libraries: web::Data<Libraries>) -> crate::Result<impl Responder> 
     let entries = libraries
         .get_all()
         .map(|lib| {
-            // Calculate the feed's "updated" field while we're at it.
             if lib.updated_at() > updated_at {
                 updated_at = lib.updated_at();
             }
@@ -57,18 +56,16 @@ async fn root(libraries: web::Data<Libraries>) -> crate::Result<impl Responder> 
         })
         .collect();
 
-    Ok(HttpResponse::Ok()
-        .insert_header(header::ContentType(mime::TEXT_XML))
-        .body(to_string(&models::Feed {
-            xmlns: XMLNS_ATOM,
-            id: "urn:seshat:root".to_string(),
-            title: FEED_TITLE.to_string(),
-            subtitle: Some("Explore all available libraries".to_string()),
-            updated: updated_at,
-            authors: vec![FEED_AUTHOR],
-            links: vec![models::Link::start()],
-            entries,
-        })?))
+    HttpResponse::Ok().xml(&models::Feed {
+        xmlns: XMLNS_ATOM,
+        id: "urn:seshat:root".to_string(),
+        title: FEED_TITLE.to_string(),
+        subtitle: Some("Explore all available libraries".to_string()),
+        updated: updated_at,
+        authors: vec![FEED_AUTHOR],
+        links: vec![models::Link::start()],
+        entries,
+    })
 }
 
 #[get("/{lib_name}")]
@@ -80,57 +77,44 @@ async fn library_root(
         return Err(AppError::LibraryNotFound);
     };
 
-    let mut entries = vec![models::Entry {
+    HttpResponse::Ok().xml(&models::Feed {
+        xmlns: XMLNS_ATOM,
         id: lib.acquisition_feed_id().to_string(),
-        title: "View Books".into(),
+        title: FEED_TITLE.to_string(),
+        subtitle: Some(format!("Exploring the \"{lib_name}\" library").to_string()),
         updated: lib.updated_at(),
-        authors: vec![],
-        categories: vec![],
-        content: None,
-        links: vec![models::Link {
-            href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_name}/explore")),
-            kind: models::LinkType::Acquisition.as_str(),
-            rel: None,
-        }],
-    }];
-
-    entries.extend(
-        [
-            ("Sorted by Newest", "the date they were added", "date_added"),
-            ("Sorted by Title", "title", "title"),
-            ("Sorted by Author", "author", "author"),
+        authors: vec![FEED_AUTHOR],
+        links: vec![models::Link::start()],
+        entries: [
+            models::LibraryRootEntry {
+                description: "View books",
+                title: "View Books",
+                link_rel: None,
+                sort_by: None,
+            },
+            models::LibraryRootEntry {
+                link_rel: Some(models::LinkRel::SortNew),
+                description: "View new books",
+                sort_by: Some("date_added"),
+                title: "View New Books",
+            },
+            models::LibraryRootEntry {
+                description: "View books sorted by title",
+                title: "View Books by Title",
+                sort_by: Some("title"),
+                link_rel: None,
+            },
+            models::LibraryRootEntry {
+                description: "View books sorted by author",
+                title: "View Books by Author",
+                sort_by: Some("author"),
+                link_rel: None,
+            },
         ]
         .into_iter()
-        .map(|(title, sorted_by, sort)| models::Entry {
-            id: lib.acquisition_feed_id().to_string(),
-            title: title.to_string(),
-            updated: lib.updated_at(),
-            authors: vec![],
-            categories: vec![],
-            content: Some(models::Content {
-                value: format!("View books sorted by {sorted_by}"),
-                kind: models::ContentKind::Text,
-            }),
-            links: vec![models::Link {
-                href: Cow::Owned(format!("{COMMON_ROUTE}/{lib_name}/explore?sort={sort}")),
-                kind: models::LinkType::Acquisition.as_str(),
-                rel: None,
-            }],
-        }),
-    );
-
-    Ok(HttpResponse::Ok()
-        .insert_header(header::ContentType(mime::TEXT_XML))
-        .body(to_string(&models::Feed {
-            xmlns: XMLNS_ATOM,
-            id: lib.acquisition_feed_id().to_string(),
-            title: FEED_TITLE.to_string(),
-            subtitle: Some(format!("Exploring the \"{lib_name}\" library").to_string()),
-            updated: lib.updated_at(),
-            authors: vec![FEED_AUTHOR],
-            links: vec![models::Link::start()],
-            entries,
-        })?))
+        .map(|e| (lib, e).into())
+        .collect(),
+    })
 }
 
 #[derive(Deserialize)]
@@ -219,16 +203,14 @@ async fn explore_catalog(
         )
         .await?;
 
-    Ok(HttpResponse::Ok()
-        .insert_header(header::ContentType(mime::TEXT_XML))
-        .body(to_string(&models::Feed {
-            xmlns: XMLNS_ATOM,
-            id: lib.acquisition_feed_id().to_string(),
-            title: FEED_TITLE.to_string(),
-            subtitle: Some(format!("Exploring the \"{lib_name}\" library").to_string()),
-            updated: lib.updated_at(),
-            authors: vec![FEED_AUTHOR],
-            links: vec![models::Link::start()],
-            entries,
-        })?))
+    HttpResponse::Ok().xml(&models::Feed {
+        xmlns: XMLNS_ATOM,
+        id: lib.acquisition_feed_id().to_string(),
+        title: FEED_TITLE.to_string(),
+        subtitle: Some(format!("Exploring the \"{lib_name}\" library").to_string()),
+        updated: lib.updated_at(),
+        authors: vec![FEED_AUTHOR],
+        links: vec![models::Link::start()],
+        entries,
+    })
 }
