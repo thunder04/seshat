@@ -1,4 +1,5 @@
 use actix_web::{HttpResponse, HttpResponseBuilder, body::BoxBody};
+use compact_str::CompactString;
 use sha3::{Digest as _, Sha3_256};
 
 /// Hashes a string using the Sha3_256 algorithm.
@@ -25,5 +26,21 @@ impl HttpResponseBuilderExt for HttpResponseBuilder {
         Ok(self
             .insert_header(actix_web::http::header::ContentType(mime::TEXT_XML))
             .body(quick_xml::se::to_string(value)?))
+    }
+}
+
+/// A [`CompatString`] newtype for use with `rusqlite`.
+#[derive(Debug)]
+pub struct CompactStringSql(pub CompactString);
+
+impl rusqlite::types::FromSql for CompactStringSql {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        Ok(Self(CompactString::from(value.as_str()?)))
+    }
+}
+
+impl rusqlite::types::ToSql for CompactStringSql {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        Ok(rusqlite::types::ToSqlOutput::from(self.0.as_str()))
     }
 }

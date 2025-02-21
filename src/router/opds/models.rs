@@ -1,5 +1,4 @@
-use std::borrow::Cow;
-
+use compact_str::CompactString;
 use serde::Serialize;
 use time::{OffsetDateTime, serde::rfc3339};
 
@@ -15,13 +14,13 @@ pub struct LibraryRootEntry {
 impl From<(&Library, LibraryRootEntry)> for Entry {
     fn from((lib, e): (&Library, LibraryRootEntry)) -> Self {
         Self {
-            id: lib.acquisition_feed_id().to_string(),
-            title: e.title.to_string(),
+            id: lib.acquisition_feed_id().into(),
             updated: lib.updated_at(),
-            authors: vec![],
+            title: e.title.into(),
             categories: vec![],
+            authors: vec![],
             content: Some(Content {
-                value: e.description.to_string(),
+                value: e.description.into(),
                 kind: ContentKind::Text,
             }),
             links: vec![Link {
@@ -39,10 +38,10 @@ pub struct Feed {
     #[serde(rename = "@xlmns")]
     pub xmlns: &'static str,
 
-    pub id: String,
-    pub title: String,
+    pub id: CompactString,
+    pub title: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subtitle: Option<String>,
+    pub subtitle: Option<CompactString>,
     #[serde(with = "rfc3339")]
     pub updated: OffsetDateTime,
     /// Specification says there must be at least one author.
@@ -57,8 +56,8 @@ pub struct Feed {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Entry {
-    pub id: String,
-    pub title: String,
+    pub id: CompactString,
+    pub title: CompactString,
     #[serde(with = "rfc3339")]
     pub updated: OffsetDateTime,
     /// Specification says there must be at least one author.
@@ -75,23 +74,23 @@ pub struct Entry {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Author {
-    pub name: Cow<'static, str>,
+    pub name: CompactString,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<Cow<'static, str>>,
+    pub uri: Option<CompactString>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Category {
     #[serde(rename = "@term")]
-    pub term: String,
+    pub term: CompactString,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Link {
     #[serde(rename = "@href")]
-    pub href: Cow<'static, str>,
+    pub href: CompactString,
     #[serde(rename = "@rel", skip_serializing_if = "Option::is_none")]
     pub rel: Option<&'static str>,
     #[serde(rename = "@type")]
@@ -101,7 +100,7 @@ pub struct Link {
 impl Link {
     pub fn start() -> Self {
         Self {
-            href: Cow::Borrowed(super::COMMON_ROUTE),
+            href: CompactString::const_new(super::COMMON_ROUTE),
             kind: LinkType::Navigation.as_str(),
             rel: Some(LinkRel::Start.as_str()),
         }
@@ -157,7 +156,7 @@ pub struct Content {
     #[serde(rename = "@type")]
     pub kind: ContentKind,
     #[serde(rename = "$text")]
-    pub value: String,
+    pub value: CompactString,
 }
 
 #[non_exhaustive]

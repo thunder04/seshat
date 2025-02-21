@@ -26,6 +26,11 @@ Then, execute it by running:
 Multiple libraries are supported. Each library is defined by using the `--lib:name` and `--lib:path` options (in that order).
 For more information, run `./target/release/seshat --help`.
 
+## MSRV Policy
+
+Should this project have a library, the minimal supported Rust version will be the latest stable Rust.
+Bumping MSRV is not considered a semver-breaking change.
+
 ## Building
 
 To build for your host, run:

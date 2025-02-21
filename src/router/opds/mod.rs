@@ -1,9 +1,10 @@
 mod links;
 mod models;
 
-use std::{borrow::Cow, num::NonZeroUsize};
+use std::num::NonZeroUsize;
 
 use actix_web::{HttpResponse, Responder, get, web};
+use compact_str::{CompactString, format_compact};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -18,8 +19,8 @@ pub const COMMON_ROUTE: &str = "/opds";
 const XMLNS_ATOM: &str = "http://www.w3.org/2005/Atom";
 const FEED_TITLE: &str = "Seshat – OPDS Catalog";
 const FEED_AUTHOR: models::Author = models::Author {
-    uri: Some(Cow::Borrowed("https://github.com/thunder04")),
-    name: Cow::Borrowed("Thunder04"),
+    uri: Some(CompactString::const_new("https://github.com/thunder04")),
+    name: CompactString::const_new("Thunder04"),
 };
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -39,13 +40,13 @@ async fn root(libraries: web::Data<Libraries>) -> crate::Result<impl Responder> 
             }
 
             models::Entry {
-                id: lib.acquisition_feed_id().to_string(),
-                title: lib.name().to_string(),
+                id: lib.acquisition_feed_id().into(),
+                title: lib.name().into(),
                 updated: lib.updated_at(),
                 authors: vec![],
                 categories: vec![],
                 content: Some(models::Content {
-                    value: format!("Explore the \"{}\" library", lib.name()),
+                    value: format_compact!("Explore the \"{}\" library", lib.name()),
                     kind: models::ContentKind::Text,
                 }),
                 links: vec![models::Link {
@@ -59,9 +60,9 @@ async fn root(libraries: web::Data<Libraries>) -> crate::Result<impl Responder> 
 
     HttpResponse::Ok().xml(&models::Feed {
         xmlns: XMLNS_ATOM,
-        id: "urn:seshat:root".to_string(),
-        title: FEED_TITLE.to_string(),
-        subtitle: Some("Explore all available libraries".to_string()),
+        id: CompactString::const_new("urn:seshat:root"),
+        title: CompactString::const_new(FEED_TITLE),
+        subtitle: Some(CompactString::const_new("Explore available libraries")),
         updated: updated_at,
         authors: vec![FEED_AUTHOR],
         links: vec![models::Link::start()],
@@ -80,9 +81,9 @@ async fn library_root(
 
     HttpResponse::Ok().xml(&models::Feed {
         xmlns: XMLNS_ATOM,
-        id: lib.acquisition_feed_id().to_string(),
-        title: FEED_TITLE.to_string(),
-        subtitle: Some(format!("Exploring the \"{lib_name}\" library").to_string()),
+        id: lib.acquisition_feed_id().into(),
+        title: CompactString::const_new(FEED_TITLE),
+        subtitle: Some(format_compact!("Exploring the \"{lib_name}\" library")),
         updated: lib.updated_at(),
         authors: vec![FEED_AUTHOR],
         links: vec![models::Link::start()],
@@ -171,15 +172,12 @@ async fn explore_catalog(
                 let authors = book
                     .authors
                     .into_iter()
-                    .map(|author| models::Author {
-                        name: Cow::Owned(author),
-                        uri: None,
-                    })
+                    .map(|name| models::Author { name, uri: None })
                     .collect();
                 let categories = book
                     .tags
                     .into_iter()
-                    .map(|tag| models::Category { term: tag })
+                    .map(|term| models::Category { term })
                     .collect();
 
                 acc.push(models::Entry {
@@ -262,9 +260,9 @@ async fn explore_catalog(
 
     HttpResponse::Ok().xml(&models::Feed {
         xmlns: XMLNS_ATOM,
-        id: lib.acquisition_feed_id().to_string(),
-        title: FEED_TITLE.to_string(),
-        subtitle: Some(format!("Exploring the \"{lib_name}\" library")),
+        id: lib.acquisition_feed_id().into(),
+        title: CompactString::const_new(FEED_TITLE),
+        subtitle: Some(format_compact!("Exploring the \"{lib_name}\" library")),
         updated: lib.updated_at(),
         authors: vec![FEED_AUTHOR],
         entries,
