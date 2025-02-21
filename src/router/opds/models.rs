@@ -14,13 +14,6 @@ pub struct LibraryRootEntry {
 
 impl From<(&Library, LibraryRootEntry)> for Entry {
     fn from((lib, e): (&Library, LibraryRootEntry)) -> Self {
-        let mut href = format!("{}/{}/explore", super::COMMON_ROUTE, lib.name());
-
-        if let Some(sort_by) = e.sort_by {
-            href += "?sort=";
-            href += sort_by;
-        }
-
         Self {
             id: lib.acquisition_feed_id().to_string(),
             title: e.title.to_string(),
@@ -32,9 +25,9 @@ impl From<(&Library, LibraryRootEntry)> for Entry {
                 kind: ContentKind::Text,
             }),
             links: vec![Link {
+                href: super::links::explore_lib(lib, e.sort_by),
                 kind: LinkType::Acquisition.as_str(),
                 rel: e.link_rel.map(|x| x.as_str()),
-                href: Cow::Owned(href),
             }],
         }
     }

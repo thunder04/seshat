@@ -95,9 +95,9 @@ pub struct Library {
 }
 
 impl Library {
-    pub const DEFAULT_PAGE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(25) };
-    pub const MAX_PAGE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(50) };
-    pub const MIN_PAGE_SIZE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1) };
+    pub const DEFAULT_PAGE_SIZE: NonZeroUsize = NonZeroUsize::new(25).unwrap();
+    pub const MAX_PAGE_SIZE: NonZeroUsize = NonZeroUsize::new(50).unwrap();
+    pub const MIN_PAGE_SIZE: NonZeroUsize = NonZeroUsize::new(1).unwrap();
 
     async fn new(name: String, lib_path: PathBuf) -> eyre::Result<Self> {
         let root_path = fs::canonicalize(&lib_path).await?;
@@ -221,13 +221,16 @@ impl Library {
                         return Ok((acc, false));
                     };
 
-                    acc = f(acc, FullBook {
-                        languages: languages.remove(&book.id).unwrap_or_default(),
-                        authors: authors.remove(&book.id).unwrap_or_default(),
-                        data: data.remove(&book.id).unwrap_or_default(),
-                        tags: tags.remove(&book.id).unwrap_or_default(),
-                        ..book
-                    });
+                    acc = f(
+                        acc,
+                        FullBook {
+                            languages: languages.remove(&book.id).unwrap_or_default(),
+                            authors: authors.remove(&book.id).unwrap_or_default(),
+                            data: data.remove(&book.id).unwrap_or_default(),
+                            tags: tags.remove(&book.id).unwrap_or_default(),
+                            ..book
+                        },
+                    );
                 }
 
                 Ok((acc, books.next().is_some()))

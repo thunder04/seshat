@@ -1,3 +1,4 @@
+mod links;
 mod models;
 
 use std::{borrow::Cow, num::NonZeroUsize};
@@ -48,8 +49,8 @@ async fn root(libraries: web::Data<Libraries>) -> crate::Result<impl Responder> 
                     kind: models::ContentKind::Text,
                 }),
                 links: vec![models::Link {
-                    href: Cow::Owned(format!("{COMMON_ROUTE}/{}", lib.name())),
                     kind: models::LinkType::Acquisition.as_str(),
+                    href: links::lib_root(lib),
                     rel: None,
                 }],
             }
@@ -150,84 +151,82 @@ async fn explore_catalog(
             order_by,
             (vec![], lib_name.into_inner()),
             move |(mut acc, lib_name), book| {
+                let id = book.uri();
+                let links = book
+                    .data
+                    .iter()
+                    .map(|data| models::Link {
+                        rel: Some(models::LinkRel::Acquisition.as_str()),
+                        href: links::download_book(&lib_name, &book, data),
+                        kind: mime_guess::from_ext(&data.format)
+                            .first_raw()
+                            .unwrap_or("*/*"),
+                    })
+                    .chain(book.has_cover.then(|| models::Link {
+                        rel: Some(models::LinkRel::Image.as_str()),
+                        href: links::book_cover(&lib_name, &book),
+                        kind: mime::JPEG.as_str(),
+                    }))
+                    .collect();
+                let authors = book
+                    .authors
+                    .into_iter()
+                    .map(|author| models::Author {
+                        name: Cow::Owned(author),
+                        uri: None,
+                    })
+                    .collect();
+                let categories = book
+                    .tags
+                    .into_iter()
+                    .map(|tag| models::Category { term: tag })
+                    .collect();
+
                 acc.push(models::Entry {
-                    id: book.uri(),
                     title: book.title,
                     updated: book.last_modified_at,
-                    authors: book
-                        .authors
-                        .into_iter()
-                        .map(|author| models::Author {
-                            name: Cow::Owned(author),
-                            uri: None,
-                        })
-                        .collect(),
-                    categories: book
-                        .tags
-                        .into_iter()
-                        .map(|tag| models::Category { term: tag })
-                        .collect(),
                     content: book.content.map(|content| models::Content {
                         kind: models::ContentKind::Html,
                         value: content,
                     }),
-                    links: book
-                        .data
-                        .into_iter()
-                        .map(|data| models::Link {
-                            rel: Some(models::LinkRel::Acquisition.as_str()),
-                            href: Cow::Owned(format!(
-                                "{}/{lib_name}/{}/{}.{}",
-                                super::lib_content::COMMON_ROUTE,
-                                book.path,
-                                data.file_name,
-                                data.format
-                            )),
-                            kind: mime_guess::from_ext(&data.format)
-                                .first_raw()
-                                .unwrap_or("*/*"),
-                        })
-                        .chain(book.has_cover.then(|| models::Link {
-                            rel: Some(models::LinkRel::Image.as_str()),
-                            kind: mime::JPEG.as_str(),
-                            href: Cow::Owned(format!(
-                                "{}/{lib_name}/{}/cover.jpg",
-                                super::lib_content::COMMON_ROUTE,
-                                book.path,
-                            )),
-                        }))
-                        .collect(),
+                    categories,
+                    authors,
+                    links,
+                    id,
                 });
 
                 (acc, lib_name)
             },
         )
         .await?;
-    let mut links = vec![models::Link::start(), models::Link {
-        kind: models::LinkType::Navigation.as_str(),
-        rel: Some(models::LinkRel::First.as_str()),
-        href: Cow::Owned(format!(
-            "{COMMON_ROUTE}/{lib_name}/explore?{}",
-            serde_urlencoded::to_string(&ExploreCatalogQuery {
-                order_by: Some(order_by),
-                limit: Some(limit),
-                offset: Some(0),
-            })?
-        )),
-    }];
+    let mut links = vec![
+        models::Link::start(),
+        models::Link {
+            kind: models::LinkType::Navigation.as_str(),
+            rel: Some(models::LinkRel::First.as_str()),
+            href: links::explore_lib_with_query(
+                ExploreCatalogQuery {
+                    order_by: Some(order_by),
+                    limit: Some(limit),
+                    offset: Some(0),
+                },
+                lib,
+            ),
+        },
+    ];
 
     if lib_len > limit.get() {
         links.push(models::Link {
             kind: models::LinkType::Navigation.as_str(),
             rel: Some(models::LinkRel::Last.as_str()),
-            href: Cow::Owned(format!(
-                "{COMMON_ROUTE}/{lib_name}/explore?{}",
-                serde_urlencoded::to_string(&ExploreCatalogQuery {
+            href: links::explore_lib_with_query(
+                ExploreCatalogQuery {
                     offset: Some(lib_len.saturating_sub(limit.get())),
                     order_by: Some(order_by),
                     limit: Some(limit),
-                })?
-            )),
+                },
+                lib,
+            ),
         });
     }
 
@@ -235,14 +234,14 @@ async fn explore_catalog(
         links.push(models::Link {
             kind: models::LinkType::Navigation.as_str(),
             rel: Some(models::LinkRel::Previous.as_str()),
-            href: Cow::Owned(format!(
-                "{COMMON_ROUTE}/{lib_name}/explore?{}",
-                serde_urlencoded::to_string(&ExploreCatalogQuery {
+            href: links::explore_lib_with_query(
+                ExploreCatalogQuery {
                     offset: Some(offset.saturating_sub(limit.get())),
                     order_by: Some(order_by),
                     limit: Some(limit),
-                })?
-            )),
+                },
+                lib,
+            ),
         });
     }
 
@@ -250,14 +249,14 @@ async fn explore_catalog(
         links.push(models::Link {
             kind: models::LinkType::Navigation.as_str(),
             rel: Some(models::LinkRel::Next.as_str()),
-            href: Cow::Owned(format!(
-                "{COMMON_ROUTE}/{lib_name}/explore?{}",
-                serde_urlencoded::to_string(&ExploreCatalogQuery {
+            href: links::explore_lib_with_query(
+                ExploreCatalogQuery {
                     offset: Some(offset + limit.get()),
                     order_by: Some(order_by),
                     limit: Some(limit),
-                })?
-            )),
+                },
+                lib,
+            ),
         });
     }
 
