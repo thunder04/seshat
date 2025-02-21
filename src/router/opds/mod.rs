@@ -82,7 +82,7 @@ async fn library_root(
     HttpResponse::Ok().xml(&models::Feed {
         xmlns: XMLNS_ATOM,
         id: lib.acquisition_feed_id().into(),
-        title: CompactString::const_new(FEED_TITLE),
+        title: format_compact!("{lib_name} | {FEED_TITLE}"),
         subtitle: Some(format_compact!("Exploring the \"{lib_name}\" library")),
         updated: lib.updated_at(),
         authors: vec![FEED_AUTHOR],
@@ -261,7 +261,7 @@ async fn explore_catalog(
     HttpResponse::Ok().xml(&models::Feed {
         xmlns: XMLNS_ATOM,
         id: lib.acquisition_feed_id().into(),
-        title: CompactString::const_new(FEED_TITLE),
+        title: format_compact!("{lib_name} | {FEED_TITLE}"),
         subtitle: Some(format_compact!("Exploring the \"{lib_name}\" library")),
         updated: lib.updated_at(),
         authors: vec![FEED_AUTHOR],
